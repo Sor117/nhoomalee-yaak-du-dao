@@ -1,0 +1,7 @@
+# local working material, never part of the deliverable
+.extract/
+PLAN.md
+
+# build output and runtime data store
+ocs/target/
+ocs/data/
