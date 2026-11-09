@@ -1,6 +1,5 @@
 package ocs.service;
 
-import ocs.domain.DataProcessingSettings;
 import ocs.domain.OcsException;
 import ocs.domain.SciencePlan;
 import ocs.domain.SciencePlanDraft;

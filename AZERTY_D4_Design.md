@@ -114,6 +114,8 @@ flowchart TD
         direction TB
         ValidationRule["ValidationRule<br/>«interface / Strategy»"]
         PlanValidator["PlanValidator<br/>«Context»"]
+        ValidationResult
+        ValidationOutcome
         PlanIdPositiveRule
         PlanNameNotBlankRule
         CreatorNotBlankRule
@@ -153,6 +155,18 @@ flowchart TD
         StarCatalog["StarCatalog<br/>«interface • hides the star catalogue»"]
         SciencePlanRepository["SciencePlanRepository<br/>«interface • data store port»"]
         ObservingProgramRepository["ObservingProgramRepository<br/>«interface • data store port»"]
+        PlanStatus
+        TelescopeSite
+        Quadrant
+        Direction
+        FileType
+        FileQuality
+        ColorType
+        OpticsPrimary
+        FoldMirrorType
+        CalibrationUnit
+        LightType
+        ObservingProgramStatus
     end
 
     DataStore[("data/ directory<br/>science_plans/ and observing_programs/<br/>created on first run")]
@@ -185,7 +199,7 @@ Every class that participates in UC1–UC4 appears below, together with its fiel
 operations, the associations and their multiplicities, and the classes that play a role in the
 Strategy pattern.
 
-`````mermaid
+```````````mermaid
 classDiagram
     class PlanStatus {
         <<enumeration>>
@@ -459,6 +473,7 @@ classDiagram
     }
     class ValidationRule {
         <<interface>>
+        <<Strategy>>
         +name(): String
         +check(plan: SciencePlan): ValidationResult
     }
@@ -476,6 +491,7 @@ classDiagram
         +getFailures(): List~String~
     }
     class PlanValidator {
+        <<Context>>
         -rules: List~ValidationRule~
         +PlanValidator(rules: List~ValidationRule~)
         +validate(plan: SciencePlan): ValidationOutcome
@@ -513,7 +529,7 @@ classDiagram
         -systems: Map~String, StarSystemInfo~
         +SimulatedStarCatalog()
         +lookup(constellation: String): Optional~StarSystemInfo~
-        +loadSystems(): Map~String, StarSystemInfo~
+        -loadSystems(): Map~String, StarSystemInfo~
     }
     class PropertyFileStore {
         -DATA_DIR: Path$
@@ -534,9 +550,9 @@ classDiagram
         +findByStatus(status: PlanStatus): List~SciencePlan~
         +existsByName(planName: String): boolean
         +existsOverlapping(schedule: PlanSchedule): boolean
-        +loadAll(): List~SciencePlan~
-        +toPlan(values: Properties): SciencePlan
-        +toProperties(plan: SciencePlan): Properties
+        -loadAll(): List~SciencePlan~
+        -toPlan(values: Properties): SciencePlan
+        -toProperties(plan: SciencePlan): Properties
     }
     class FileObservingProgramRepository {
         -store: PropertyFileStore
@@ -545,9 +561,9 @@ classDiagram
         +nextId(): int
         +save(program: ObservingProgram): ObservingProgram
         +findById(programId: int): Optional~ObservingProgram~
-        +loadAll(): List~ObservingProgram~
-        +toProgram(values: Properties): ObservingProgram
-        +toProperties(program: ObservingProgram): Properties
+        -loadAll(): List~ObservingProgram~
+        -toProgram(values: Properties): ObservingProgram
+        -toProperties(program: ObservingProgram): Properties
     }
     class CreateSciencePlanService {
         -starCatalog: StarCatalog
@@ -646,9 +662,20 @@ classDiagram
     ValidationRule <|.. ObjectiveNotBlankRule
     ValidationRule <|.. QuadrantTelescopeConsistencyRule
     ValidationRule <|.. ObservationMonthRule
-    %% associations that hold a reference (navigability points at the owned/referenced class)
+    note for OcsException "extends java.lang.RuntimeException; the command classes catch it as an unchecked error"
+    %% associations that hold a reference (the arrow points at the referenced class, the tail holds it)
+    SciencePlan "1" --> "1" PlanSchedule : schedule
+    SciencePlan "1" --> "1" StarSystemInfo : target
+    SciencePlan "1" --> "1" DataProcessingSettings : dataProcessingSettings
+    SciencePlanDraft "1" --> "1" PlanSchedule : schedule
+    SciencePlanDraft "1" --> "1" DataProcessingSettings : dataProcessingSettings
     ObservingProgram "0..*" --> "1" SciencePlan : sciencePlan
-    ObservingProgram "1" *-- "0..*" TelePositionPair : telePositionPairs
+    ObservingProgram "1" --> "1" OpticsConfiguration : optics
+    ObservingProgram "1" --> "1" MechanismConfiguration : mechanism
+    ObservingProgram "1" --> "0..*" TelePositionPair : telePositionPairs
+    ObservingProgramDraft "1" --> "1" OpticsConfiguration : optics
+    ObservingProgramDraft "1" --> "1" MechanismConfiguration : mechanism
+    ObservingProgramDraft "1" --> "0..*" TelePositionPair : telePositionPairs
     PlanValidator "1" o-- "1..*" ValidationRule : rules
     SimulatedStarCatalog "1" --> "0..*" StarSystemInfo : systems
     CreateSciencePlanService "1" --> "1" StarCatalog : starCatalog
@@ -659,8 +686,9 @@ classDiagram
     ValidateSciencePlanService "1" --> "1" PlanValidator : planValidator
     CreateObservingProgramService "1" --> "1" SciencePlanRepository : planRepository
     CreateObservingProgramService "1" --> "1" ObservingProgramRepository : programRepository
-    FileSciencePlanRepository "1" *-- "1" PropertyFileStore : store
-    FileObservingProgramRepository "1" *-- "1" PropertyFileStore : store
+    CreateObservingProgramService ..> ObservingProgramDraft : reads its configurations
+    FileSciencePlanRepository "1" --> "1" PropertyFileStore : store
+    FileObservingProgramRepository "1" --> "1" PropertyFileStore : store
     FileObservingProgramRepository "1" --> "1" SciencePlanRepository : planRepository
     CreateSciencePlanApp "1" --> "1" CreateSciencePlanService : service
     MarkPlanTestedApp "1" --> "1" MarkPlanTestedService : service
@@ -678,11 +706,20 @@ classDiagram
     CreateObservingProgramApp ..> MechanismConfiguration : builds
     CreateObservingProgramApp ..> TelePositionPair : builds
     CreateObservingProgramService ..> ObservingProgram : creates
-`````
+    CreateObservingProgramService ..> OpticsConfiguration : range check
+    CreateObservingProgramService ..> MechanismConfiguration : range check
+```````````
 
 
 ---
 ## 4. Design-level sequence diagrams
+
+A lifeline names the object that exists at run time, so the repository and catalogue lifelines carry the
+name of the adapter that `Bootstrap` instantiates; the class that sends the messages holds the port type
+(`StarCatalog`, `SciencePlanRepository`, `ObservingProgramRepository`), and the class diagram shows that
+dependency. Guards whose code is a sequence of one-line checks are drawn as one `alt` with one branch per
+check, and the branch that ends in an exception means that the command stops there: `AbstractCliApp.run`
+catches the exception and prints it.
 
 ### UC1 — Create Science Plan (main flow and the overlap alternate flow)
 
@@ -694,9 +731,12 @@ sequenceDiagram
     participant SVC as CreateSciencePlanService
     participant CAT as SimulatedStarCatalog
     participant REP as FileSciencePlanRepository
+    participant PLAN as SciencePlan
+    participant SCH as PlanSchedule
 
     AST->>APP: run(args)
     activate APP
+    note over APP: step 2 builds the ArgumentValues, the DataProcessingSettings, the PlanSchedule and the SciencePlanDraft from the options
     APP->>SVC: createPlan(draft)
     activate SVC
     alt plan name, creator or objective blank
@@ -725,19 +765,27 @@ sequenceDiagram
                 else name unique
                     SVC->>REP: nextId()
                     REP-->>SVC: int
-                    create participant PLAN as SciencePlan
-                    SVC->>PLAN: new SciencePlan(planId, draft, target)
+                    create participant NEWPLAN as SciencePlan
+                    SVC->>NEWPLAN: new SciencePlan(planId, draft, target)
                     SVC->>REP: save(plan)
                     REP-->>SVC: SciencePlan
                     SVC-->>APP: SciencePlan
+                    APP->>NEWPLAN: getPlanId()
+                    NEWPLAN-->>APP: int
+                    APP->>NEWPLAN: getTarget()
+                    NEWPLAN-->>APP: StarSystemInfo
+                    APP->>NEWPLAN: getSchedule()
+                    NEWPLAN-->>APP: PlanSchedule
+                    APP->>SCH: getTelescope()
+                    SCH-->>APP: TelescopeSite
+                    APP->>NEWPLAN: getStatus()
+                    NEWPLAN-->>APP: PlanStatus
+                    APP->>APP: print("Created science plan ID ... for target ... (quadrant) on telescope ... with status ...")
                 end
             end
         end
     end
     deactivate SVC
-    APP->>PLAN: getPlanId()
-    PLAN-->>APP: int
-    APP->>APP: print("Created science plan ID ... with status CREATED.")
     deactivate APP
 ```
 
@@ -766,6 +814,7 @@ sequenceDiagram
         SVC->>REP: findByCreator(creator)
         REP-->>SVC: List<SciencePlan>
         SVC-->>APP: List<SciencePlan>
+        note over SVC: keeps only the plans whose getStatus() equals the requested status
         loop for each plan of that status
             APP->>APP: print(plan ID, plan name)
         end
@@ -843,7 +892,6 @@ sequenceDiagram
         SVC->>REP: save(plan)
         REP-->>SVC: SciencePlan
         SVC-->>APP: ValidationOutcome
-        deactivate SVC
         APP->>OUT: isValid()
         OUT-->>APP: boolean
         alt outcome is valid
@@ -869,9 +917,11 @@ sequenceDiagram
     participant PREP as FileObservingProgramRepository
     participant OPTICS as OpticsConfiguration
     participant MECH as MechanismConfiguration
+    participant PLAN as SciencePlan
 
     OBS->>APP: run(args)
     activate APP
+    note over APP: step 3 builds the OpticsConfiguration, the MechanismConfiguration, the TelePositionPair list and the ObservingProgramDraft from the options
     APP->>SVC: listValidatedPlans()
     SVC->>REP: findByStatus(VALIDATED)
     REP-->>SVC: List<SciencePlan>
@@ -905,15 +955,21 @@ sequenceDiagram
                 SVC->>PREP: save(program)
                 PREP-->>SVC: ObservingProgram
                 SVC-->>APP: ObservingProgram
+                APP->>PROG: getProgramId()
+                PROG-->>APP: int
+                APP->>PROG: getGeminiLocation()
+                PROG-->>APP: TelescopeSite
+                APP->>PROG: getSciencePlan()
+                PROG-->>APP: SciencePlan
+                APP->>PLAN: getPlanId()
+                PLAN-->>APP: int
+                APP->>PROG: getStatus()
+                PROG-->>APP: ObservingProgramStatus
+                APP->>APP: print("Created observing program ID ... at ... for science plan ID ... with status ...")
             end
         end
     end
     deactivate SVC
-    APP->>PROG: getProgramId()
-    PROG-->>APP: int
-    APP->>PROG: getGeminiLocation()
-    PROG-->>APP: TelescopeSite
-    APP->>APP: print("Created observing program ID ... for science plan ID ...")
     deactivate APP
 ```
 

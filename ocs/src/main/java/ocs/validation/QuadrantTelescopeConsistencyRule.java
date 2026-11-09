@@ -1,6 +1,5 @@
 package ocs.validation;
 
-import ocs.domain.Quadrant;
 import ocs.domain.SciencePlan;
 import ocs.domain.TelescopeSite;
 

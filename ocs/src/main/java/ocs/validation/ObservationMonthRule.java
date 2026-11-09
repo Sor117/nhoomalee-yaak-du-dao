@@ -1,7 +1,5 @@
 package ocs.validation;
 
-import java.time.Month;
-
 import ocs.domain.SciencePlan;
 
 public final class ObservationMonthRule implements ValidationRule {

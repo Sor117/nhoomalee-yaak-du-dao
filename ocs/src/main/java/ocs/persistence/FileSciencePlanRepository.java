@@ -102,7 +102,7 @@ public final class FileSciencePlanRepository implements SciencePlanRepository {
         return false;
     }
 
-    public List<SciencePlan> loadAll() {
+    private List<SciencePlan> loadAll() {
         List<SciencePlan> plans = new ArrayList<>();
         for (String key : store.keys()) {
             plans.add(toPlan(store.load(key)));
@@ -110,7 +110,7 @@ public final class FileSciencePlanRepository implements SciencePlanRepository {
         return List.copyOf(plans);
     }
 
-    public SciencePlan toPlan(Properties values) {
+    private SciencePlan toPlan(Properties values) {
         TelescopeSite site = TelescopeSite.valueOf(values.getProperty("telescope"));
         PlanSchedule schedule = new PlanSchedule(
                 LocalDate.parse(values.getProperty("startDate")),
@@ -155,7 +155,7 @@ public final class FileSciencePlanRepository implements SciencePlanRepository {
         return plan;
     }
 
-    public Properties toProperties(SciencePlan plan) {
+    private Properties toProperties(SciencePlan plan) {
         Properties values = new Properties();
         values.setProperty("planId", String.valueOf(plan.getPlanId()));
         values.setProperty("planName", plan.getPlanName());

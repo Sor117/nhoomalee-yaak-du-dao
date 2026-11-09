@@ -9,7 +9,6 @@ import ocs.domain.DataProcessingSettings;
 import ocs.domain.FileQuality;
 import ocs.domain.FileType;
 import ocs.domain.PlanSchedule;
-import ocs.domain.Quadrant;
 import ocs.domain.SciencePlan;
 import ocs.domain.SciencePlanDraft;
 import ocs.domain.TelescopeSite;

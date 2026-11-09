@@ -10,7 +10,7 @@ public final class ObservingProgramDraft {
     public ObservingProgramDraft(OpticsConfiguration optics, MechanismConfiguration mechanism, List<TelePositionPair> telePositionPairs) {
         this.optics = optics;
         this.mechanism = mechanism;
-        this.telePositionPairs = telePositionPairs;
+        this.telePositionPairs = List.copyOf(telePositionPairs);
     }
 
     public OpticsConfiguration getOptics() {

@@ -87,12 +87,18 @@ public final class SciencePlan {
     }
 
     public void markValidated(String observerName, LocalDateTime validatedAtUtc) {
+        if (status != PlanStatus.SUBMITTED) {
+            throw new OcsException("Only a submitted science plan can be validated.");
+        }
         status = PlanStatus.VALIDATED;
         validatedBy = observerName;
         validatedAt = validatedAtUtc;
     }
 
     public void markInvalidated(String observerName, LocalDateTime validatedAtUtc) {
+        if (status != PlanStatus.SUBMITTED) {
+            throw new OcsException("Only a submitted science plan can be validated.");
+        }
         status = PlanStatus.INVALIDATED;
         validatedBy = observerName;
         validatedAt = validatedAtUtc;

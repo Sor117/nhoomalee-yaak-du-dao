@@ -59,7 +59,7 @@ public final class FileObservingProgramRepository implements ObservingProgramRep
         return Optional.of(toProgram(store.load(key)));
     }
 
-    public List<ObservingProgram> loadAll() {
+    private List<ObservingProgram> loadAll() {
         List<ObservingProgram> programs = new ArrayList<>();
         for (String key : store.keys()) {
             programs.add(toProgram(store.load(key)));
@@ -67,7 +67,7 @@ public final class FileObservingProgramRepository implements ObservingProgramRep
         return List.copyOf(programs);
     }
 
-    public ObservingProgram toProgram(Properties values) {
+    private ObservingProgram toProgram(Properties values) {
         int planId = Integer.parseInt(values.getProperty("sciencePlanId"));
         SciencePlan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new OcsException(
@@ -99,7 +99,7 @@ public final class FileObservingProgramRepository implements ObservingProgramRep
         return program;
     }
 
-    public Properties toProperties(ObservingProgram program) {
+    private Properties toProperties(ObservingProgram program) {
         Properties values = new Properties();
         values.setProperty("programId", String.valueOf(program.getProgramId()));
         values.setProperty("sciencePlanId",

@@ -32,7 +32,7 @@ public final class SimulatedStarCatalog implements StarCatalog {
         return Optional.ofNullable(systems.get(constellation));
     }
 
-    public Map<String, StarSystemInfo> loadSystems() {
+    private Map<String, StarSystemInfo> loadSystems() {
         Map<String, StarSystemInfo> loaded = new LinkedHashMap<>();
         try (InputStream in = getClass().getResourceAsStream(RESOURCE)) {
             if (in == null) {
