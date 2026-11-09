@@ -68,8 +68,18 @@ interfaces.
 * **Method cohesion.** Every service method performs one use case step chain: `createPlan` validates,
   resolves the target, checks the schedule and the name, then constructs and saves. `PlanValidator.validate`
   is communicational over its rule list. The only loops in the code (`findByCreator`, `findByStatus`,
-  `loadAll`) iterate one collection to filter or convert it. No method mixes phases; the checker's
-  manual review of the 56 classes found no method with procedural or weaker cohesion.
+  `loadAll`) iterate one collection to filter or convert it.
+* **Assessed level per method.** Method cohesion was graded method by method, not claimed in the
+  aggregate: the domain operations, the seven rules and the services' query methods are functional;
+  `FileSciencePlanRepository.save`/`findById` and `FileObservingProgramRepository.save`/`findById` are
+  sequential (open, map, write; read, map, close); `filterPlansByStatus` and `ValidationOutcome.isValid`
+  are communicational; `CreateSciencePlanService.createPlan`,
+  `FileSciencePlanRepository.toPlan`/`toProperties` and `CreateSciencePlanApp.execute` are procedural —
+  each is a fixed sequence over one aggregate, performed once at a boundary (a use case, the data-store
+  format, the command line); the three value-object predicates (`isCompleteForMode`, the two
+  `isWithinRanges`) are logical, because each combines the checks that the description applies
+  together for the selected mode or site. The independent AI review of section 6.3 reached the same
+  division and each of its findings is answered there.
 * **Class cohesion.** Each class represents one thing and its methods work on its own fields:
   `PlanSchedule.isOrdered` and `PlanSchedule.overlaps` use `startDate`, `endDate` and `telescope`;
   `DataProcessingSettings.isCompleteForMode` uses `colorType` and the two adjustment groups;
@@ -89,11 +99,13 @@ interfaces.
 * **Data coupling.** Services exchange value objects and entities; no service passes a control flag,
   a `Map` of unrelated values or a structure that the callee must interpret. The only enumerations used
   as data are typed enums, not strings.
-* **No reach-through and no train wrecks.** A service asks a repository for the entity it needs and then
-  works on that entity. The single navigation chain in the design, `sciencePlan.getSchedule().getTelescope()`,
-  appears in `ObservingProgram.getGeminiLocation` and in `CreateObservingProgramService`, and it exists
-  because the observing program derives its site from the plan it belongs to; it is two hops and both
-  hops are associations drawn in the class diagram.
+* **Short navigation.** A service asks a repository for the entity it needs and then works on that
+  entity. Three calls take one extra hop — `plan.getSchedule().getTelescope()`,
+  `plan.getTarget().getQuadrant()` and `draft.getOptics().isWithinRanges(...)` — and each hop is an
+  association drawn in the class diagram, so the navigation is visible rather than hidden. The team
+  kept them instead of adding `telescope()`/`quadrant()` wrappers to `SciencePlan`, because such
+  wrappers move the same knowledge into the entity and enlarge its public surface; the AI review
+  raised this as finding 21 and section 6.3 records the decision.
 * **Encapsulation.** Every field is private, no class exposes a setter, and every collection is copied on
   the way in and on the way out (`List.copyOf` in `PlanValidator`, `ValidationOutcome`, the repositories
   and `ObservingProgram`). `SciencePlan` changes state only through `markTested`, `submit`,
@@ -109,7 +121,7 @@ interfaces.
 | Type | `PlanStatus`, `FileType`, `ColorType`, `OpticsPrimary`, `CalibrationUnit`, `LightType`, `FoldMirrorType`, `Direction`, `Quadrant`, `TelescopeSite` are enumerations. | The description mentions string codes ("PNG", "Argon", "NQ1"); typing them removes connascence of meaning on literals: a misspelt value cannot reach the domain. |
 | Position | Longest constructor parameter list is seven (`SciencePlanDraft`, `DataProcessingSettings`), used at one CLI call site. | Grouping `PlanSchedule`, `StarSystemInfo`, `ColorAdjustments`, `ToneAdjustments`, `OpticsConfiguration`, `MechanismConfiguration` and the two drafts reduced the original 13-value form payload to at most seven named arguments, and the objects are built once, in the command class, where the option names are visible on the same lines. |
 | Convention | The `.properties` keys of the data store. | Written and read by one encoder/decoder pair inside one repository, and the directory handling sits in `PropertyFileStore`; no other class knows a key name. |
-| Algorithm | The quadrant-to-telescope mapping and the month rule, the f-stop and RMS ranges, the fold-mirror range and the module range. | Each lives in exactly one place: `QuadrantTelescopeConsistencyRule`, `ObservationMonthRule`, `OpticsConfiguration.isWithinRanges`, `MechanismConfiguration.isWithinRanges`. The star catalogue stores the month as a `java.time.Month`, so only one interpretation of a month exists. |
+| Algorithm | The quadrant-to-telescope mapping and the month rule, the f-stop and RMS ranges, the fold-mirror range and the module range. | Each lives in exactly one place: `QuadrantTelescopeConsistencyRule`, `ObservationMonthRule`, `OpticsConfiguration.isWithinRanges`, `MechanismConfiguration.isWithinRanges`. The star catalogue stores the month as a `java.time.Month`, so only one interpretation of a month exists. One knowledge is deliberately repeated: the rule that a colour plan carries the colour adjustments and a black-and-white plan carries the tone adjustments is asked three times — by the command line (which options to read), by `DataProcessingSettings.isCompleteForMode` (which group must be present) and by the repository (which keys to write) — and each question is different, so the comparison is one enum test rather than a shared table. The AI review reports it as finding 27 and section 6.3 records the decision. |
 
 ### 2.5 The data store and how the rest of the code stays independent of it
 
@@ -151,7 +163,7 @@ couple the service to each criterion's message and data.
 | Strategy | `ocs.validation.ValidationRule` | Interface with `name()` and `check(SciencePlan)`; the class diagram marks it `«Strategy»`. |
 | ConcreteStrategy | `PlanIdPositiveRule`, `PlanNameNotBlankRule`, `CreatorNotBlankRule`, `FundingNotBlankRule`, `ObjectiveNotBlankRule`, `QuadrantTelescopeConsistencyRule`, `ObservationMonthRule` | One class per criterion, each a few lines, each self-contained. |
 | Context | `ocs.validation.PlanValidator` | Holds `List<ValidationRule> rules`, calls `check` on each and collects the results; marked `«Context»`. |
-| Result | `ValidationResult`, `ValidationOutcome` | One result per rule; the outcome aggregates them and answers `isValid()`/`getFailures()`. |
+| Results (not a role of the pattern) | `ValidationResult`, `ValidationOutcome` | One result per rule; the outcome aggregates them and answers `isValid()`/`getFailures()`. |
 
 The rule set is assembled in the composition root, so the service depends on `PlanValidator` only, and
 the class diagram and the code agree on every role: the checker in section 6.2 verified that all seven
@@ -438,8 +450,8 @@ What was done instead, and what it means:
 ### 6.2 Conformance and quality tooling written for this deliverable
 
 Because SonarQube measures code style rather than the property that is actually graded — *the code follows
-the design* — a small checker was written outside the repository (`check.py`, run against the working
-tree) that reads the Mermaid blocks of `AZERTY_D4_Design.md`, reads all 56 Java files, and compares them:
+the design* — a small checker is shipped with the deliverable as `tools/check_conformance.py`. It reads the
+Mermaid blocks of `AZERTY_D4_Design.md`, reads all 56 Java files, and compares them:
 
 | Check | What it verifies | Result on the final working tree |
 |-------|------------------|----------------------------------|
@@ -453,20 +465,100 @@ agreement before the final run. Its output is quoted in section 6.4.
 
 ### 6.3 AI review
 
-<!-- AI-REVIEW-PLACEHOLDER -->
+**Run 1 — 9 November 2026.**
+
+| Field | Value |
+|-------|-------|
+| Date | 9 November 2026, Asia/Bangkok |
+| AI tool | DeepSeek Harness review subagent; a fresh context that saw only the repository files, not this report's reasoning |
+| Exact model | `opencode-go/deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
+| Commit reviewed | the working tree before the first commit — identical to the files committed as `9473e4d`, `f45ae73` and `a5ea0e3` |
+| How the AI accessed the files | it read them directly from disk (design file, all 56 Java sources, `pom.xml`, `star_systems.csv`, this report, `PLAN.md`) |
+| Prompt | Appendix A of the Project Phase 2 description, `<groupname>` replaced by `AZERTY` |
+| Complete output | `reviews/2026-11-09_deepseek-v4.1-flash_run1.md` |
+
+The run checked 56 classes, 185 operations, 87 attributes, 104 sequence-diagram messages and 6 packages,
+and reported **44 findings: 2 Must fix, 22 Should fix, 20 Note**. The two Must-fix findings were real
+defects of the design file — the package diagram omitted the twelve domain enumerations and the two
+validation result classes — and both were corrected in the design. Every finding is answered below with
+the change that closed it or the reason for keeping the design as it is.
+
+| No. | Severity | Finding (abbreviated) | Response |
+|-----|----------|-----------------------|----------|
+| 1 | Must fix | twelve domain enumerations appear in no package box | **Fixed** — all twelve added to the `ocs.domain` box |
+| 2 | Must fix | `ValidationResult`/`ValidationOutcome` missing from the validation box | **Fixed** — both added |
+| 3 | Should fix | UC1/UC4 read the created object outside the branch that creates it | **Fixed** — both diagrams redrawn; the getters are inside the creating branch |
+| 4 | Should fix | print messages omit the getters the code calls | **Fixed** — `getTarget`, `getSchedule`/`getTelescope`, `getStatus`, `getSciencePlan`/`getPlanId` added; text matches the code |
+| 5 | Should fix | construction steps of UC1 step 2 and UC4 step 3 appear as no message | **Fixed** — a `note over APP` documents the objects built from the options in both diagrams |
+| 6 | Should fix | no association from the service to the optics/mechanism objects it messages | **Fixed** — the service now has dependencies on the draft and the two configurations, and the draft holds both |
+| 7 | Note | lifelines name the adapters while senders hold the ports | **Accepted** — a lifeline is one object that exists at run time, so the adapter name is the accurate label; the port type held by the sender is drawn in the class diagram and noted in section 4 of the design file |
+| 8 | Note | UC3 activation bar closed inside a branch | **Fixed** — `deactivate SVC` moved after the fragment |
+| 9 | Should fix | `OcsException` superclass invisible in the class diagram | **Fixed** — a note states `extends java.lang.RuntimeException` |
+| 10 | Should fix | nine reference attributes have no association | **Fixed** — all nine drawn with multiplicity and role name |
+| 11 | Note | composition overstates ownership of the position pairs | **Fixed** — changed to an association, and the draft copies its list |
+| 12 | Note | the status predicate of the UC2 filter is not drawn | **Fixed** — a note marks it |
+| 13 | Should fix | `createPlan` is procedural | **Accepted** — the four guards are the input contract of this one use case; a separate draft validator would forward four one-line checks and duplicate the Strategy role used in UC3. Section 2.2 records the level |
+| 14 | Should fix | the three value-object predicates are logical | **Accepted** — each expresses one rule of the description for the selected mode or site; splitting it would push the range tables into the callers, a tighter connascence |
+| 15 | Should fix | `toProperties` is procedural | **Accepted** — one pass over one aggregate at the data-store boundary; splitting per sub-object adds four methods with one caller each and hides the order |
+| 16 | Should fix | `toPlan` is logical and also rehydrates state | **Accepted** — the colour branch is the decision answered in 27; rehydration is answered in 22 |
+| 17 | Note | `execute` is procedural | **Accepted** — command-line boundary code; a factory would add a class with one caller |
+| 18 | Should fix | the repository has three responsibilities | **Accepted** — the mapping is the data store's convention and lives where that convention lives; a mapper class would move the same code behind an interface used once |
+| 19 | Note | the program repository allocates IDs and resolves a plan | **Accepted** — both belong to the repository that owns the aggregate; resolving in the service would still need the plan repository |
+| 20 | Note | the draft doubles as the rehydration DTO | **Accepted** — the entity's constructor already takes a draft; a second constructor would duplicate the field copying |
+| 21 | Should fix | reach-through chains contradict the rationale | **Accepted** — the extra hops are drawn as associations and section 2.3 now states the three of them instead of claiming there is one |
+| 22 | Should fix | content coupling: persistence sets state through public rehydration operations | **Accepted** — package-private is impossible because persistence is a separate Java package; a rehydration factory would be the same operation with another name |
+| 23 | Note | control coupling: the site selects an internal range table | **Accepted** — the site is data that selects the method's own table; passing the bounds would make every caller know them |
+| 24 | Should fix | stamp coupling: every rule receives the whole plan | **Accepted** — that parameter is what keeps the interface stable when a criterion changes; per-value parameters would couple the validator to each rule's needs |
+| 25 | Note | adapters import 11–15 domain types | **Accepted** — an adapter maps a whole aggregate, so it must see its value objects; a mapper would not narrow the type set |
+| 26 | Note | user-facing copy lives in the domain and the service | **Accepted** — the messages are the wording of the provided description, which the prototype must follow; error codes would add a table for no gain at this size |
+| 27 | Should fix | the colour-mode rule appears in three packages | **Accepted** — the three sites ask three different questions (which options to read, which group must be present, which keys to write) about one enum value; see section 2.4 |
+| 28 | Note | the next-ID and status-filter scans are implemented twice | **Accepted** — each repository owns its own ID space; moving the scan into the store would couple the store to integer identities |
+| 29 | Should fix | the data-store convention spans three classes | **Accepted** — the pair encoding is produced by the command class and consumed only inside the persistence package; a codec class would be used by one method |
+| 30 | Note | option-name literals repeat | **Accepted** — the names are documented in section 1 and appear once per command; a constants class would be a class outside the design |
+| 31 | Note | enumeration constants are reached by string surgery | **Accepted** — the accepted spellings are part of the documented command interface |
+| 32 | Should fix | `getTelePositionPairs` returns the internal list | **Fixed** — the constructor copies with `List.copyOf` and the getter returns that copy |
+| 33 | Note | five operations are public but have no outside caller | **Fixed** — they are private in the code and in the class diagram |
+| 34 | Note | the status guard is duplicated in the service and the entity | **Accepted** — the service produces the use-case message; the entity guard is the invariant and stays as the second line |
+| 35 | Should fix | `markValidated`/`markInvalidated` enforce no transition | **Fixed** — both now require the plan to be `SUBMITTED` |
+| 36 | Should fix | `«Strategy»`/`«Context»` are not in the class diagram and "Result" is not a role | **Fixed** — both stereotypes added; the row is relabelled |
+| 37 | Note | the Context never calls `name()` | **Accepted** — `name()` is the strategy's identity and each rule uses it to build its own result |
+| 38 | Should fix | section 6.3 is an HTML placeholder while section 7 claims a review exists | **Fixed** — this section replaces it |
+| 39 | Should fix | `reviews/` is empty | **Fixed** — the complete run output is in `reviews/2026-11-09_deepseek-v4.1-flash_run1.md` |
+| 40 | Note | `PLAN.md` holds instructions addressed to an AI | **Fixed** — `PLAN.md` is untracked and listed in `.gitignore`, so it is not in the submitted tree; section 7 says so |
+| 41 | Note | the cohesion claim is contradicted by findings 13–17 | **Fixed** — section 2.2 now states the assessed level of every method named there |
+| 42 | Should fix | the UC1 Step column does not follow the description | **Fixed** — the Step column was renumbered; the reviewer read the previous draft of the table |
+| 43 | Note | the reproduction block runs a `check.py` that is not in the repository | **Fixed** — the checker is shipped as `tools/check_conformance.py` and section 6.4 shows the real command and output |
+| 44 | Note | three unused imports | **Fixed** — the generator's import scan no longer matches method names, and the imports are gone |
+
+No finding remains unanswered. The accepted ones are quality judgements on a deliberately small design;
+in each case the suggested alternative would move the same knowledge to another class, add a class used
+once, or widen a public surface. A second run against the final commit is planned once the team commits
+the final version (section 8).
 
 ### 6.4 Reproduction of the checks
 
-The two artifacts that a reviewer can reproduce without the helper scripts:
+All three checks repeat from a fresh clone of the repository:
+
+```bash
+# 1. the prototype builds and produces the jar
+cd ocs
+mvn -q package
+echo BUILD-OK
+
+# 2. the compiler reports no warnings (Windows: use %TEMP%\lint\ and the file list of step 3)
+javac -Xlint:all -d /tmp/lint $(git ls-files 'ocs/src/main/java/*.java')
+
+# 3. the design and the code agree, from the repository root
+cd ..
+python tools/check_conformance.py
+```
+
+Their output on the committed tree:
 
 ```
-$ cd ocs && mvn -q package && echo BUILD-OK
 BUILD-OK
+(no javac output)
 
-$ javac -Xlint:all -d <tmp> $(find src/main/java -name '*.java')
-(no output)
-
-$ python check.py
 design classes: 56, code classes: 56
 package edges used: catalog->domain, cli->catalog, cli->domain, cli->persistence, cli->service,
                     cli->validation, persistence->domain, service->domain, service->validation,
@@ -490,8 +582,9 @@ member must still be able to explain the design and code of their own use case w
 | Claude (Anthropic), model `claude-haiku` running in the harness's plan mode | Execution planner: reviewed the course description and the workspace and produced the build plan (ordered phases, verification gates, risks) before any file was written | `PLAN.md` (not part of the submitted deliverable) | The plan was read and reconciled against the description by the team; two of its recommendations were corrected where the team's reading of the requirements differed (UTC timestamps follow D1 requirement 36; the prototype uses no library at all). |
 | AI review run recorded in `reviews/` | Independent review of the design and the code, using the Appendix A prompt of the project description | The findings table and the team's responses in section 6.3 | Each finding was checked against the named file and line; findings that were accepted were fixed, the rest are answered individually in section 6.3. |
 
-No AI tool wrote text addressed to an AI reviewer, and the repository contains no instruction aimed at
-an automated review.
+The submitted tree contains no text addressed to an AI reviewer. The one file that does contain
+instructions about how to run this review is the team's planning file `PLAN.md`, which is not part of the
+repository and is listed in `.gitignore`.
 
 ---
 
@@ -504,6 +597,9 @@ an automated review.
 3. **The draft-save branch of Create a Science Plan** is not implemented, as declared in the design file
    (team decision D6). The alternate flows that are implemented are the ones in section 3.
 4. **Login** is out of scope, as the course requires; the actor identity arrives on the command line.
-5. **AI review "commit reviewed" field.** The review was run against the working tree because this
-   working copy has not been committed. After the team commits the final version, the review should be
-   repeated once against that commit and this record updated with the real hash.
+5. **AI review run 1 was against the working tree.** The review of section 6.3 read the files before the
+   first commit; a second run against the final commit is planned, and its output will be added to
+   `reviews/` and to section 6.3 with the real hash.
+6. **The AI review's accepted findings are deliberate.** Findings 7, 13–31 and 34 are quality judgements
+   on a deliberately small design; section 6.3 answers each one. The two Must-fix findings and nine
+   Should-fix findings were real defects and were corrected in the design and the code.
