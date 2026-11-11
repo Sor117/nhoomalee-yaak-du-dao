@@ -4,8 +4,9 @@ Checks
   A. class diagram <-> Java: classes, fields (name/type/visibility/static), operations
      (name/return type/parameters/visibility/static/abstract), nothing extra in the code.
   B. package diagram <-> imports: only permitted package dependencies, no cycles.
-  C. sequence diagrams: every lifeline is a class of the diagram, every message names an
-     operation that exists on the receiver (or one of its supertypes) and appears as a call.
+  C. sequence diagrams: every lifeline is a class of the diagram and every call message names an
+     operation that exists on the receiver (or one of its supertypes). Returns and Java call
+     sites are not inspected; those rules are checked by hand and by the AI review.
 """
 import os
 import re

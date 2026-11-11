@@ -73,17 +73,19 @@ scheduling code exists anywhere in the design or the prototype.
   functional: each computes one value on its own data. `FileSciencePlanRepository.save`/`findById` and
   `FileObservingProgramRepository.save`/`findById` are sequential (open, map, write; read, map,
   close). `PlanValidator.validate` and `SubmitSciencePlanService.filterPlansByStatus` are
-  communicational (iterate one collection and select on `check`/`getStatus`). Twelve methods are
+  communicational (iterate one collection and select on `check`/`getStatus`). Thirteen methods are
   procedural by design, and each sits at a boundary: the four use-case steps
   (`CreateSciencePlanService.createPlan`, `SubmitSciencePlanService.submitPlan`,
   `ValidateSciencePlanService.validatePlan`, `CreateObservingProgramService.createProgram`), the four
-  data-store mappings (`toPlan`/`toProperties` in each repository), the four command `execute`
-  methods and `ArgumentValues`. `Bootstrap.createApplications` is temporal (a set of objects created
-  together), and `FileSciencePlanRepository.toPlan` and `DataProcessingSettings.isCompleteForMode`
-  are logical because they branch on the colour mode; `OpticsConfiguration.isWithinRanges` and
-  `MechanismConfiguration.isWithinRanges` are logical for the same reason. Every one of these levels
-  is stated here rather than hidden: the design accepts them because each sits at a boundary (one use
-  case, one stored format, one command line) where a fixed sequence is the whole job.
+  data-store mappings (`toPlan`/`toProperties` in each repository), the five command `execute`
+  methods (including `mark-tested`) and `ArgumentValues`. `Bootstrap.createApplications` is temporal
+  (a set of objects created together), `Bootstrap.main` is logical (it selects one command from
+  `args[0]`), `FileSciencePlanRepository.toPlan` and `DataProcessingSettings.isCompleteForMode` are
+  logical because they branch on the colour mode, `OpticsConfiguration.isWithinRanges` is logical
+  (it selects one of two range tables), and `MechanismConfiguration.isWithinRanges` is procedural
+  (two independent range tests). Every one of these levels is stated here rather than hidden: the
+  design accepts them because each sits at a boundary (one use case, one stored format, one command
+  line) where a fixed sequence is the whole job.
 * **Class cohesion.** Each class represents one thing and its methods work on its own fields:
   `PlanSchedule.isOrdered` and `PlanSchedule.overlaps` use `startDate`, `endDate` and `telescope`;
   `DataProcessingSettings.isCompleteForMode` uses `colorType` and the two adjustment groups;
@@ -105,13 +107,16 @@ scheduling code exists anywhere in the design or the prototype.
   method of `Bootstrap` and add one package.
 * **Data coupling.** Services exchange value objects and entities; no service passes a control flag or
   a structure that the callee must interpret. The only enumerations used as data are typed enums.
-* **Short navigation.** A service asks a repository for the entity it needs, then works on it. Four
-  kinds of call take two hops: `plan.getSchedule().getTelescope()`,
+* **Short navigation.** A service asks a repository for the entity it needs, then works on it. The
+  chains in the code are `plan.getSchedule().getTelescope()`,
   `plan.getTarget().getQuadrant()`/`getConstellation()`,
-  `plan.getSchedule().getStartDate().getMonth()` and `draft.getOptics().isWithinRanges(...)`;
-  `ObservingProgram.getGeminiLocation()` is a computed attribute that reads its plan. Every hop is
-  an association drawn in the class diagram. The team kept them instead of adding wrapper operations
-  that would duplicate the same knowledge in `SciencePlan`.
+  `plan.getSchedule().getStartDate().getMonth()` (three calls; the last hop goes through
+  `java.time.LocalDate`, which is no design association), `draft.getOptics().isWithinRanges(...)`,
+  `draft.getMechanism().isWithinRanges()` and `program.getSciencePlan().getPlanId()`;
+  `ObservingProgram.getGeminiLocation()` is a computed attribute that reads its plan. Every hop that
+  crosses two designed classes is an association drawn in the class diagram. The team kept these
+  chains instead of adding wrapper operations that would duplicate the same knowledge in
+  `SciencePlan`.
 * **Encapsulation.** Every field is private, and every collection is copied on the way in and on the
   way out (`List.copyOf` in the repositories and `ObservingProgram`). `SciencePlan` changes state only
   through `markTested`, `submit`, `markValidated` and `markInvalidated`, each of which enforces the
@@ -443,7 +448,7 @@ files, and compares them:
 |-------|------------------|----------------------------------|
 | A. Class diagram ↔ code | every designed class exists with the same kind (class / abstract / interface / enumeration) and the same enum literals; every designed field exists with the same name, type, visibility and `static`; every designed operation exists with the same name, return type, parameter types, visibility and `static`; **no field or operation exists in the code that the diagram does not show** | 53 of 53 classes matched, 0 differences |
 | B. Package diagram ↔ imports | the package graph rebuilt from every `import ocs.…` statement contains only the permitted arrows and no cycle | 10 arrows, all permitted, no cycle |
-| C. Sequence diagrams ↔ classes and operations | every lifeline is a class of the class diagram (or an actor) and every call message names an operation that exists on the receiver or on one of its supertypes; return values are declared. The script does not read Java call sites, so the call order and the reachability of each message were checked by hand and by the two independent reviews of section 6.3. | 4 diagrams, all messages resolved |
+| C. Sequence diagrams ↔ classes and operations | every lifeline is a class of the class diagram (or an actor) and every call message names an operation that exists on the receiver or on one of its supertypes. The script does not read Java call sites or return types, so the call order and the reachability of each message were checked by hand and by the four independent reviews of section 6.3. | 4 diagrams, all messages resolved |
 
 Its output on the final working tree:
 
@@ -459,10 +464,10 @@ No conformance problems found.
 
 ### 6.3 AI review
 
-Three runs are recorded: **run 1** on the earlier 56-class design, and **two independent runs** on
-the final working tree (**run 2** and **run 3**), made by two reviewers that saw only the repository
-files. The complete output of every run is in `reviews/`; the fixes applied after runs 2 and 3 are
-marked **Fixed**.
+Four runs are recorded: **run 1** on the earlier 56-class design, **two independent runs** on the
+working tree (**run 2** and **run 3**), and **run 4** on the committed tree (`7428011`, the commit
+that this report accompanies). The complete output of every run is in `reviews/`; the fixes applied
+after runs 2 and 3 are marked **Fixed**, and run 4 re-checked the fixed tree.
 
 **Run 1 — 9 November 2026.**
 
@@ -537,7 +542,7 @@ class or element the finding named no longer exists.
 | Date | 11 November 2026, Asia/Bangkok |
 | AI tool | DeepSeek Harness review subagent; a fresh context that saw only the repository files |
 | Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
-| Commit reviewed | the final working tree (not yet committed; the team must commit it before the deadline) |
+| Commit reviewed | the working tree before the fixes of section 6.3; the fixed tree was committed as `7428011` and re-reviewed as run 4 |
 | How the AI accessed the files | it read them directly from disk (design file, all 53 Java sources, this report, `tools/check_conformance.py`, `PLAN.md`, `.gitignore`, and the runtime `ocs/data` files) |
 | Prompt | Appendix A of the Project Phase 2 description, `<groupname>` replaced by `AZERTY` |
 | Complete output | `reviews/2026-11-11_deepseek-v4.1-flash_run2.md` |
@@ -586,7 +591,7 @@ no finding at all.
 | 36 | Should fix | the report says no class reaches into another's data | **Fixed** — section 2.2 replaced by the honest statement |
 | 37 | Should fix | the report understates the positional connascence call sites | **Fixed** — section 2.4 |
 | 38 | Should fix | a rejected command still exits with status 0, contradicting D1 NFR 7 | **Fixed** — `AbstractCliApp` prints the error and exits with status 1 (verified) |
-| 39 | Note | a malformed number prints the raw Java message | **Fixed** — `ArgumentValues` reports `Invalid number for --x: value` and the expected date format |
+| 39 | Note | a malformed number prints the raw Java message | **Fixed** — `ArgumentValues` maps a malformed number to `Invalid number for --x: value` and a malformed date to the expected format; the create command additionally maps a malformed `--funding` to the narrative message |
 | 40 | Note | `FileObservingProgramRepository.loadAll` is never called but is designed | **Fixed** — removed from the code and the class diagram |
 | 41 | Note | `ObservingProgramRepository.findById` has no caller | **Accepted** — kept as the port operation that reads one program by ID |
 | 42 | Note | `PLAN.md` is in the working tree and contains text about this review | **Fixed** in this report — section 7 now says "committed tree"; `PLAN.md` is untracked and ignored, and no review instruction was followed |
@@ -598,7 +603,7 @@ no finding at all.
 | Date | 11 November 2026, Asia/Bangkok |
 | AI tool | DeepSeek Harness review teammate; a separate fresh context that saw only the repository files |
 | Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
-| Commit reviewed | the final working tree (not yet committed) |
+| Commit reviewed | the working tree before the fixes of section 6.3; the fixed tree was committed as `7428011` and re-reviewed as run 4 |
 | How the AI accessed the files | it read them directly from disk (design file, all 53 Java sources, this report, `tools/check_conformance.py`, `PLAN.md`, `.gitignore`) |
 | Prompt | Appendix A of the Project Phase 2 description, `<groupname>` replaced by `AZERTY` |
 | Complete output | `reviews/2026-11-11_deepseek-v4.1-flash_run3.md` |
@@ -637,9 +642,57 @@ missing package or dependency.
 | 26 | Note | `loadAll` is designed but never called | **Fixed** — removed from code and class diagram |
 | 27 | Note | the run-1 answer to finding 29 overstates the convention's locality | **Fixed** — the run-1 response above now states the two-sided pair format |
 
-The two runs agree on the substance (procedural boundaries, rehydration seam, repeated colour-mode
+Runs 2–4 agree on the substance (procedural boundaries, rehydration seam, repeated colour-mode
 rule, connascence of position); every finding that could be fixed without enlarging the design was
 fixed, and the remaining ones are answered above.
+
+**Run 4 — 11 November 2026 (committed tree `7428011`).**
+
+| Field | Value |
+|-------|-------|
+| Date | 11 November 2026, Asia/Bangkok |
+| AI tool | DeepSeek Harness review teammate; a fresh context that saw only the repository files |
+| Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
+| Commit reviewed | `7428011` (working tree clean; the reviewer confirmed `git log -1`, empty `git status` and the ignored `PLAN.md`) |
+| How the AI accessed the files | it read them from disk and re-ran `python tools/check_conformance.py`, which printed `No conformance problems found.` on this tree |
+| Prompt | Appendix A of the Project Phase 2 description, `<groupname>` replaced by `AZERTY` |
+| Complete output | `reviews/2026-11-11_deepseek-v4.1-flash_run4.md` |
+
+Run 4 checked 53 classes, 177 operations, 122 message arrows (62 calls, 60 returns) and 6 packages,
+and reported **26 findings: 0 Must fix, 9 Should fix, 17 Note**. Check 2 produced no finding.
+
+| No. | Severity | Finding (abbreviated) | Response |
+|-----|----------|-----------------------|----------|
+| 1 | Note | `DataProcessingSettings` has two reference attributes with no association | **Fixed** — both associations added to the class diagram |
+| 2 | Note | `Bootstrap` wiring and the apps' enumeration dependencies are not drawn | **Explained** — section 4 names `Bootstrap` as the composition root; a full wiring graph would duplicate the package diagram |
+| 3 | Note | print self-messages list field arguments while the code passes one `String`; "filtered" prefix not drawn | **Explained** — the print messages are drawn as descriptive labels and the header is printed before the loop (section 4) |
+| 4 | Note | UC4 note says "step 1 continues" while the description puts the build in step 2 | **Fixed** — the note now says step 2 |
+| 5 | Should fix | the UC1 data-processing guard cannot be reached from the command line | **Accepted** — the parser rejects a missing option before the service; the service guard is defensive and section 8 item 8 records it |
+| 6 | Should fix | malformed `--funding` prints a raw Java message; missing funding never reaches the service | **Fixed** — the app now parses funding and maps a malformed value to "Funding amount must be a positive numerical value."; a missing option is still reported by the parser |
+| 7 | Note | the code called `plan.getTarget()` twice, the diagram once | **Fixed** — the app holds the target in a local variable |
+| 8 | Should fix | the cohesion inventory omits `MarkPlanTestedApp.execute` and `Bootstrap.main` | **Fixed** — section 2.2 lists thirteen procedural, one temporal and four logical methods by name |
+| 9 | Note | section 2.2 misclassifies `MechanismConfiguration.isWithinRanges` and `OpticsConfiguration.isWithinRanges` | **Fixed** — Mechanism is procedural, Optics is logical (two range tables) |
+| 10 | Note | `geminiLocation` works on the plan, not on an own field | **Accepted** — it is the documented computed attribute; section 2.2 states the exception where the class-cohesion claim is made |
+| 11 | Should fix | each repository performs three jobs | **Accepted** — the mapping belongs with the stored format; documented |
+| 12 | Note | the chain list misses the `LocalDate` hop and two further chains | **Fixed** — section 2.3 lists every chain and names the `java.time.LocalDate` hop |
+| 13 | Should fix | stamp coupling: rules receive the whole plan | **Accepted** — keeps the Strategy interface stable |
+| 14 | Should fix | control coupling: the site selects the RMS table | **Accepted** — the site is data selecting the method's own table |
+| 15 | Should fix | content coupling through `restoreState`/`restoreStatus` | **Accepted** — documented rehydration seam (section 2.3) |
+| 16 | Note | connascence of position on same-typed constructor parameters | **Accepted** — section 2.4 states the two call sites |
+| 17 | Note | the colour-mode rule spans four sites in three packages | **Accepted** — section 2.4 states it |
+| 18 | Note | `nextId` is written twice | **Accepted** — each repository owns its ID space |
+| 19 | Note | the `DIRECTION:DEGREE`/`;` pair encoding is not documented in a diagram | **Accepted** — it is the documented command format (sections 1 and 2.4) |
+| 20 | Note | connascence of meaning on prefixes, `GEMINI_`, CSV column order and lookup case | **Accepted** — documented CLI and catalogue contracts; the target lookup is exact and the name-uniqueness check ignores case by design |
+| 21 | Note | fan-out of `Bootstrap`, the plan repository and the create app | **Accepted** — composition root and aggregate adapters |
+| 22 | Should fix | the run-2 answer about malformed numbers does not cover `--funding` | **Fixed** — the app now maps malformed funding to the designed message, and the run-2 answer is corrected |
+| 23 | Note | row C and the checker docstring overstate what the script verifies | **Fixed** — row C and the script docstring now state that only class and operation names are checked by the script |
+| 24 | Should fix | UC3 promises that the observer can correct an invalidated plan, but no operation edits a plan | **Fixed** — the alternate flow now states that correcting an invalidated plan is outside the prototype |
+| 25 | Note | the report said the reviewed tree was uncommitted and the hash was still to record | **Fixed** — the run 2/3 metadata and section 8 now record commit `7428011` |
+| 26 | Note | `PLAN.md` contains instruction text addressed to AI agents | **Accepted and disclosed** — it is untracked and ignored, section 7 discloses it, and no reviewer followed it |
+
+Every fix above was applied to the tree and re-verified (build, lint, conformance checker and the
+eight flows); the report describes the tree that commit `7428011` contains, and the fixes are in the
+commit that follows it.
 
 ---
 
@@ -653,7 +706,7 @@ assistance.
 | AI tool and exact model | Purpose | Files or parts of the work it produced or changed | How the team checked its output |
 |-------------------------|---------|---------------------------------------------------|---------------------------------|
 | DeepSeek Harness, model `deepseek-v4.1-flash` | Design and implementation assistant: drafted the re-scoped D1 requirements, the D2 use-case model, the D3 analysis, the D4 package/class/sequence diagrams, the revised use-case descriptions, the 53 Java sources and this report from the team's written decisions | `AZERTY_D1_Requirements.md`, `AZERTY_D2_Usecase.puml`/`.md`, `AZERTY_D3_Complete_Analysis.md`, `AZERTY_D4_Design.md`, all 53 `.java` files, `ocs/pom.xml`, `ocs/.gitignore`, the star-catalogue resource, most of this report | Every artifact was executed: `mvn package`, `javac -Xlint:all`, the 8 flows of section 3 and the conformance checker of section 6.2. The team revised the design whenever the checker or a run disagreed with it. |
-| DeepSeek Harness, model `deepseek-v4.1-flash` (three independent review runs) | AI review of the design and the code, using the Appendix A prompt (runs 1–3) | The findings tables of section 6.3 and the team's responses | Each finding was checked against the named file and line; fixed findings were fixed, accepted ones are answered individually in section 6.3; the complete output of every run is in `reviews/` |
+| DeepSeek Harness, model `deepseek-v4.1-flash` (four independent review runs) | AI review of the design and the code, using the Appendix A prompt (runs 1–4) | The findings tables of section 6.3 and the team's responses | Each finding was checked against the named file and line; fixed findings were fixed, accepted ones are answered individually in section 6.3; the complete output of every run is in `reviews/` |
 | DeepSeek Harness, model `deepseek-v4.1-flash` (this delivery session) | Re-scope and execution: wrote `PLAN.md` and carried out the D1–D4 re-scope and the verification | `PLAN.md` (untracked, not part of the deliverable), the re-scoped files listed above | The Lead checked the working tree, ran the build, lint, conformance checker and the 8 flows, and ran the independent review of section 6.3 |
 | Claude (Anthropic), model `claude-haiku`, via the harness's plan mode | A planning attempt before the re-scope | none — the tool returned an infrastructure error and produced no plan; the plan in `PLAN.md` was written by the DeepSeek session instead | The error was recorded and no artifact from it was used |
 
@@ -678,9 +731,10 @@ followed it (runs 2 and 3 report it under Check 5, as section 6.3 records).
 5. **AI review run 1 was against the earlier 56-class design**; its complete output remains in
    `reviews/` for traceability. The re-scope kept the accepted judgements and removed the classes
    behind the superseded findings.
-6. **Runs 2 and 3 were made against the working tree**, not a commit, because the re-scope had not
-   been committed when they ran. The team must commit this tree and record the final commit hash here
-   before the deadline.
+6. **Runs 2 and 3 were made against the working tree** before the fixes they produced; the fixed
+   tree is commit `7428011` and **run 4** reviewed that commit. The team's remaining edits
+   (SonarQube results, use-case owners) change this report, so one final review run on the
+   submitted commit is recommended.
 7. **The accepted AI-review findings are deliberate.** They are quality judgements on a deliberately
    small design — the procedural use-case steps at the boundaries, the rehydration seam in the
    persistence package, the allowed two-hop navigation and the colour-mode rule that three packages

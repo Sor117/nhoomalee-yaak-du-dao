@@ -619,6 +619,8 @@ classDiagram
     SciencePlan "1" --> "1" PlanSchedule : schedule
     SciencePlan "1" --> "1" StarSystemInfo : target
     SciencePlan "1" --> "1" DataProcessingSettings : dataProcessingSettings
+    DataProcessingSettings "1" --> "1" ColorAdjustments : colorAdjustments
+    DataProcessingSettings "1" --> "1" ToneAdjustments : toneAdjustments
     SciencePlanDraft "1" --> "1" PlanSchedule : schedule
     SciencePlanDraft "1" --> "1" DataProcessingSettings : dataProcessingSettings
     ObservingProgram "0..*" --> "1" SciencePlan : sciencePlan
@@ -903,7 +905,7 @@ sequenceDiagram
     loop for each validated science plan
         APP->>APP: print(plan ID, plan name)
     end
-    note over APP: step 1 continues: the app builds the OpticsConfiguration, the MechanismConfiguration and the TelePositionPair list and wraps them in an ObservingProgramDraft
+    note over APP: step 2 continues: the app builds the OpticsConfiguration, the MechanismConfiguration and the TelePositionPair list and wraps them in an ObservingProgramDraft
     APP->>SVC: createProgram(planId, observerId, draft)
     activate SVC
     SVC->>REP: findById(planId)
@@ -989,7 +991,7 @@ appears as a message in the sequence diagram of section 4.
 | **Precondition:** the observer has logged in and at least one plan is in status `SUBMITTED`. |
 | **Trigger:** the observer starts the `validate-plan` command for a submitted plan. |
 | **Normal Flow of Events:** <ol><li>The observer supplies the plan ID and his name.</li><li>The system lists every submitted plan with its ID, name and target.</li><li>The system loads the selected plan from the data store and verifies that it exists and that its status is `SUBMITTED`.</li><li>The system hands the plan to the `PlanValidator`, which runs the seven rules: the plan ID is a positive integer; the plan name, the creator, the funding and the objective are not blank; the telescope matches the quadrant of the target (`NQ` → Gemini North, `SQ` → Gemini South); the start date falls in the month in which the target is observable. `PlanValidator.validate(plan)` returns the empty list when every rule passes and the names of the failed rules otherwise.</li><li>When no rule failed, the plan records the observer, the UTC time and the status `VALIDATED`; otherwise it records the same data with the status `INVALIDATED`.</li><li>The system saves the plan in the data store.</li><li>The system prints either "Validate Science Plan Succeed ID: ..." or "Validate failed: " followed by the names of the failed rules, separated by commas.</li></ol> |
-| **Alternate/Exceptional Flow:** <ul><li>**3a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**3b. The plan is not `SUBMITTED`:** the system reports "Only a submitted science plan can be validated."</li><li>**4a. At least one rule fails:** the plan becomes `INVALIDATED` in step 5 and the system prints "Validate failed: " with the names of the failed rules in step 7; the observer can correct the plan. This is the alternate flow demonstrated in the presentation, with a plan whose target is `SQ1` but whose telescope is Gemini North.</li></ul> |
+| **Alternate/Exceptional Flow:** <ul><li>**3a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**3b. The plan is not `SUBMITTED`:** the system reports "Only a submitted science plan can be validated."</li><li>**4a. At least one rule fails:** the plan becomes `INVALIDATED` in step 5 and the system prints "Validate failed: " with the names of the failed rules in step 7. Correcting an invalidated plan is outside this prototype: no use case edits a stored plan. This is the alternate flow demonstrated in the presentation, with a plan whose target is `SQ1` but whose telescope is Gemini North.</li></ul> |
 
 ### UC4 — Create Observing Program
 

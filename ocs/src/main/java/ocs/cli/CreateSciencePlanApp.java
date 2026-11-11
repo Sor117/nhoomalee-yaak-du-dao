@@ -8,9 +8,11 @@ import ocs.domain.ColorType;
 import ocs.domain.DataProcessingSettings;
 import ocs.domain.FileQuality;
 import ocs.domain.FileType;
+import ocs.domain.OcsException;
 import ocs.domain.PlanSchedule;
 import ocs.domain.SciencePlan;
 import ocs.domain.SciencePlanDraft;
+import ocs.domain.StarSystemInfo;
 import ocs.domain.TelescopeSite;
 import ocs.domain.ToneAdjustments;
 import ocs.service.CreateSciencePlanService;
@@ -47,15 +49,22 @@ public final class CreateSciencePlanApp extends AbstractCliApp {
                 values.getDate("end"),
                 TelescopeSite.valueOf("GEMINI_"
                         + values.getString("telescope").toUpperCase(Locale.ROOT)));
+        BigDecimal funding;
+        try {
+            funding = new BigDecimal(values.getString("funding"));
+        } catch (NumberFormatException e) {
+            throw new OcsException("Funding amount must be a positive numerical value.");
+        }
         SciencePlanDraft draft = new SciencePlanDraft(values.getString("name"),
                 values.getString("creator"),
-                new BigDecimal(values.getString("funding")),
+                funding,
                 values.getString("objective"), schedule,
                 values.getString("target"), settings);
         SciencePlan plan = service.createPlan(draft);
+        StarSystemInfo target = plan.getTarget();
         print("Created science plan ID " + plan.getPlanId() + " for "
-                + plan.getTarget().getConstellation() + " ("
-                + plan.getTarget().getQuadrant() + ") on "
+                + target.getConstellation() + " ("
+                + target.getQuadrant() + ") on "
                 + plan.getSchedule().getTelescope() + " with status "
                 + plan.getStatus() + ".");
     }
