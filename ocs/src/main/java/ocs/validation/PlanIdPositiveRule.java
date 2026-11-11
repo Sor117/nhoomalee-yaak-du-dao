@@ -12,7 +12,7 @@ public final class PlanIdPositiveRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(), plan.getPlanId() > 0);
+    public boolean check(SciencePlan plan) {
+        return plan.getPlanId() > 0;
     }
 }

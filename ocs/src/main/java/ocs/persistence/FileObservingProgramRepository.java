@@ -59,14 +59,6 @@ public final class FileObservingProgramRepository implements ObservingProgramRep
         return Optional.of(toProgram(store.load(key)));
     }
 
-    private List<ObservingProgram> loadAll() {
-        List<ObservingProgram> programs = new ArrayList<>();
-        for (String key : store.keys()) {
-            programs.add(toProgram(store.load(key)));
-        }
-        return List.copyOf(programs);
-    }
-
     private ObservingProgram toProgram(Properties values) {
         int planId = Integer.parseInt(values.getProperty("sciencePlanId"));
         SciencePlan plan = planRepository.findById(planId)

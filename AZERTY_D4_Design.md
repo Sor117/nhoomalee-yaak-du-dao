@@ -19,37 +19,13 @@ rationale, the run instructions, the traceability table and the quality results 
 | UC3 | **Validate Science Plan** | Science Observer | the same `SciencePlan` in status `VALIDATED` or `INVALIDATED` |
 | UC4 | **Create Observing Program** | Science Observer | a new `ObservingProgram` for the validated `SciencePlan` |
 
-An auxiliary command, `mark-tested`, implements the small program that the *Submit Science Plan*
-description requires in order to move a plan from `CREATED` to `TESTED`. It is part of UC2's
-preconditions and is therefore designed here as well (class `MarkPlanTestedService` and
-`MarkPlanTestedApp`). It is not a fifth use case and earns no separate marks.
-
-**Why these four.**
-
-1. **They form one connected flow, as the selection rule requires.** Each use case operates on the
-   object that the previous one produced: UC1 creates the science plan, UC2 changes its status so
-   that it becomes eligible for validation, UC3 validates that same plan, and UC4 reads the validated
-   plan and produces the observing program. The four share the classes `SciencePlan`, `PlanSchedule`,
-   `StarSystemInfo`, `DataProcessingSettings` and the two repositories; there is no isolated or
-   decorative use case among them.
-2. **UC4 involves both major classes of the Gemini system.** It reads a `SciencePlan` and creates an
-   `ObservingProgram`, so the pair SciencePlan–ObservingProgram is present in one use case, as the
-   selection rule demands.
-3. **The narrative document specifies these four completely.** It gives the fields of a science plan,
-   the eight statuses, the seven validation criteria, the 88-constellation quadrant and month tables,
-   and every range of an observing program. The prototype's data and rules can therefore follow the
-   document exactly instead of inventing domain rules.
-4. **Login and Execute Science Plan are excluded for the reasons the course gives.** `Login` does not
-   count towards the four. `Execute Science Plan` appears in the workflow slides but the narrative
-   document defines no data and no rules for it; implementing it would mean inventing the very rules
-   that the description says must follow the provided documents.
-5. **Phase 1 coverage.** The Phase 1 analysis (D3) modelled the OCS as a hierarchy of
-   `ScienceProgram` → `ObservationSequence` → `ObservationStep`. It contains no `SciencePlan` and no
-   `ObservingProgram` class, so none of its five use cases can satisfy requirement 2 above. The
-   selection rule covers this case explicitly: a team whose Phase 1 analysis covers fewer than four
-   suitable use cases "analyses the remaining ones as part of this deliverable". The four use cases
-   above are therefore analysed here, in the D4 design, and their descriptions below are written in
-   the same Markdown table format that Phase 1 used.
+The four use cases are four of the five use cases analysed in D3. They form one connected flow, because
+each one operates on the object that the previous one produced: UC1 creates the `SciencePlan`, UC2 moves
+it to `SUBMITTED`, UC3 records its verdict, and UC4 reads the validated plan and creates the second major
+class, `ObservingProgram`. D3's fifth use case, *Test a Science Plan*, is not designed or implemented as a
+use case in D4: the prototype represents it only by the auxiliary command `mark-tested`
+(`ocs.cli.MarkPlanTestedApp`), the status-update program that the Submit story requires to move a plan
+from `CREATED` to `TESTED`. It is not a fifth use case and earns no separate marks.
 
 ### Team decisions that the source documents leave open
 
@@ -61,9 +37,7 @@ recorded here so that the model and the code can be read unambiguously.
 | D1 | The `PlanStatus` enum declares all eight statuses of the narrative, but only the four transitions used by UC1–UC4 are implemented (`CREATED`→`TESTED`→`SUBMITTED`→`VALIDATED`/`INVALIDATED`). | `RUNNING`, `COMPLETE` and `CANCELLED` belong to execution use cases that are outside the four selected use cases. Implementing unused transitions would be code beyond the design. |
 | D2 | `ObservingProgramStatus` has the two values `CREATED` and `CONFIRMED`. | The narrative says the system "updates the validation status of the observing program" but never names its values; validation of an observing program is not one of the selected use cases, so a minimal status is modelled. |
 | D3 | `TelePositionPair.direction` is an enumeration of four compass directions (`NORTH`, `SOUTH`, `EAST`, `WEST`); `degree` is a `double` with no range check. | The narrative says each pair "holds a direction and a degree" but gives no vocabulary and no range. The fold-mirror range [30, 45] belongs to a different field and is not reused. |
-| D4 | `SciencePlan.validatedAt` is recorded in UTC. | D1 requirement 36 requires UTC timestamps for recorded events. The narrative only says "the date and time of the validation". |
-| D5 | Login is out of scope. The actor identity is passed on the command line (`--creator`, `--observer`). | `Login` does not count towards the four use cases and the precondition of every use case is that the actor "has already logged in". |
-| D6 | The "save the plan as a draft and complete it later" branch of the Create a Science Plan description is not implemented. | Resuming an incomplete plan is a separate edit use case, which is outside the four selected use cases; the description has been revised accordingly in section 5. |
+| D4 | Login is out of scope; the actor identity is passed on the command line (`--creator`, `--observer`) and `SciencePlan.validatedAt` is recorded in UTC. | `Login` does not count towards the four use cases and the precondition of every use case is that the actor "has already logged in"; the requirements ask for UTC timestamps on recorded events. |
 
 ### Notation conventions used by the diagrams
 
@@ -104,7 +78,6 @@ flowchart TD
     subgraph service["ocs.service — use-case services"]
         direction TB
         CreateSciencePlanService
-        MarkPlanTestedService
         SubmitSciencePlanService
         ValidateSciencePlanService
         CreateObservingProgramService
@@ -114,8 +87,6 @@ flowchart TD
         direction TB
         ValidationRule["ValidationRule<br/>«interface / Strategy»"]
         PlanValidator["PlanValidator<br/>«Context»"]
-        ValidationResult
-        ValidationOutcome
         PlanIdPositiveRule
         PlanNameNotBlankRule
         CreatorNotBlankRule
@@ -475,54 +446,41 @@ classDiagram
         <<interface>>
         <<Strategy>>
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
-    }
-    class ValidationResult {
-        -ruleName: String
-        -passed: boolean
-        +ValidationResult(ruleName: String, passed: boolean)
-        +getRuleName(): String
-        +isPassed(): boolean
-    }
-    class ValidationOutcome {
-        -results: List~ValidationResult~
-        +ValidationOutcome(results: List~ValidationResult~)
-        +isValid(): boolean
-        +getFailures(): List~String~
+        +check(plan: SciencePlan): boolean
     }
     class PlanValidator {
         <<Context>>
         -rules: List~ValidationRule~
         +PlanValidator(rules: List~ValidationRule~)
-        +validate(plan: SciencePlan): ValidationOutcome
+        +validate(plan: SciencePlan): List~String~
     }
     class PlanIdPositiveRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class PlanNameNotBlankRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class CreatorNotBlankRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class FundingNotBlankRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class ObjectiveNotBlankRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class QuadrantTelescopeConsistencyRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class ObservationMonthRule {
         +name(): String
-        +check(plan: SciencePlan): ValidationResult
+        +check(plan: SciencePlan): boolean
     }
     class SimulatedStarCatalog {
         -RESOURCE: String$
@@ -561,7 +519,6 @@ classDiagram
         +nextId(): int
         +save(program: ObservingProgram): ObservingProgram
         +findById(programId: int): Optional~ObservingProgram~
-        -loadAll(): List~ObservingProgram~
         -toProgram(values: Properties): ObservingProgram
         -toProperties(program: ObservingProgram): Properties
     }
@@ -571,11 +528,6 @@ classDiagram
         +CreateSciencePlanService(starCatalog: StarCatalog, planRepository: SciencePlanRepository)
         +createPlan(draft: SciencePlanDraft): SciencePlan
         -isBlank(value: String): boolean$
-    }
-    class MarkPlanTestedService {
-        -planRepository: SciencePlanRepository
-        +MarkPlanTestedService(planRepository: SciencePlanRepository)
-        +markPlanTested(planId: int): SciencePlan
     }
     class SubmitSciencePlanService {
         -planRepository: SciencePlanRepository
@@ -589,7 +541,7 @@ classDiagram
         -planValidator: PlanValidator
         +ValidateSciencePlanService(planRepository: SciencePlanRepository, planValidator: PlanValidator)
         +listSubmittedPlans(): List~SciencePlan~
-        +validatePlan(planId: int, observerName: String): ValidationOutcome
+        +validatePlan(planId: int, observerName: String): List~String~
     }
     class CreateObservingProgramService {
         -planRepository: SciencePlanRepository
@@ -620,8 +572,8 @@ classDiagram
         #execute(values: ArgumentValues)
     }
     class MarkPlanTestedApp {
-        -service: MarkPlanTestedService
-        +MarkPlanTestedApp(service: MarkPlanTestedService)
+        -planRepository: SciencePlanRepository
+        +MarkPlanTestedApp(planRepository: SciencePlanRepository)
         #execute(values: ArgumentValues)
     }
     class SubmitSciencePlanApp {
@@ -680,7 +632,6 @@ classDiagram
     SimulatedStarCatalog "1" --> "0..*" StarSystemInfo : systems
     CreateSciencePlanService "1" --> "1" StarCatalog : starCatalog
     CreateSciencePlanService "1" --> "1" SciencePlanRepository : planRepository
-    MarkPlanTestedService "1" --> "1" SciencePlanRepository : planRepository
     SubmitSciencePlanService "1" --> "1" SciencePlanRepository : planRepository
     ValidateSciencePlanService "1" --> "1" SciencePlanRepository : planRepository
     ValidateSciencePlanService "1" --> "1" PlanValidator : planValidator
@@ -691,7 +642,7 @@ classDiagram
     FileObservingProgramRepository "1" --> "1" PropertyFileStore : store
     FileObservingProgramRepository "1" --> "1" SciencePlanRepository : planRepository
     CreateSciencePlanApp "1" --> "1" CreateSciencePlanService : service
-    MarkPlanTestedApp "1" --> "1" MarkPlanTestedService : service
+    MarkPlanTestedApp "1" --> "1" SciencePlanRepository : planRepository
     SubmitSciencePlanApp "1" --> "1" SubmitSciencePlanService : service
     ValidateSciencePlanApp "1" --> "1" ValidateSciencePlanService : service
     CreateObservingProgramApp "1" --> "1" CreateObservingProgramService : service
@@ -699,6 +650,17 @@ classDiagram
     ValidationRule ..> SciencePlan : validates
     PlanValidator ..> SciencePlan : validates
     CreateSciencePlanApp ..> SciencePlanDraft : builds
+    CreateSciencePlanApp ..> PlanSchedule : builds
+    CreateSciencePlanApp ..> DataProcessingSettings : builds
+    CreateSciencePlanApp ..> ColorAdjustments : builds
+    CreateSciencePlanApp ..> ToneAdjustments : builds
+    CreateSciencePlanApp ..> SciencePlan : messages the created plan
+    CreateSciencePlanApp ..> StarSystemInfo : prints the constellation
+    SubmitSciencePlanApp ..> SciencePlan : prints the plan status
+    ValidateSciencePlanApp ..> SciencePlan : prints the plan details
+    ValidateSciencePlanApp ..> StarSystemInfo : prints the target
+    CreateObservingProgramApp ..> ObservingProgram : prints the created program
+    CreateObservingProgramApp ..> SciencePlan : prints the plan ID
     CreateSciencePlanService ..> SciencePlan : creates
     CreateSciencePlanService ..> StarSystemInfo : resolves target
     CreateObservingProgramApp ..> ObservingProgramDraft : builds
@@ -719,7 +681,11 @@ name of the adapter that `Bootstrap` instantiates; the class that sends the mess
 (`StarCatalog`, `SciencePlanRepository`, `ObservingProgramRepository`), and the class diagram shows that
 dependency. Guards whose code is a sequence of one-line checks are drawn as one `alt` with one branch per
 check, and the branch that ends in an exception means that the command stops there: `AbstractCliApp.run`
-catches the exception and prints it.
+catches the exception, prints `ERROR: <message>` and exits with status 1, so no print message is drawn
+inside the exception branches. `Bootstrap` creates the repositories, the catalogue and the five command
+objects before `run` is called, and `mark-tested` is the auxiliary status program required by the Submit
+story, so neither has a use-case sequence diagram of its own. The `N found.` header of each listing is
+printed before the loop that the diagram shows.
 
 ### UC1 — Create Science Plan (main flow and the overlap alternate flow)
 
@@ -733,10 +699,11 @@ sequenceDiagram
     participant REP as FileSciencePlanRepository
     participant PLAN as SciencePlan
     participant SCH as PlanSchedule
+    participant STAR as StarSystemInfo
 
     AST->>APP: run(args)
     activate APP
-    note over APP: step 2 builds the ArgumentValues, the DataProcessingSettings, the PlanSchedule and the SciencePlanDraft from the options
+    note over APP: step 2 builds the DataProcessingSettings, the PlanSchedule and the SciencePlanDraft from the options
     APP->>SVC: createPlan(draft)
     activate SVC
     alt plan name, creator or objective blank
@@ -751,7 +718,7 @@ sequenceDiagram
         SVC->>CAT: lookup(draft.getTargetName())
         CAT-->>SVC: Optional<StarSystemInfo>
         alt target not in the star catalogue
-            SVC-->>APP: OcsException("Selected target not found in the star catalogue.")
+            SVC-->>APP: OcsException("Selected target not found in the star catalogue. Please choose a valid target.")
         else target found
             SVC->>REP: existsOverlapping(draft.getSchedule())
             REP-->>SVC: boolean
@@ -761,7 +728,7 @@ sequenceDiagram
                 SVC->>REP: existsByName(draft.getPlanName())
                 REP-->>SVC: boolean
                 alt plan name already used
-                    SVC-->>APP: OcsException("A science plan with this name already exists.")
+                    SVC-->>APP: OcsException("A science plan with this name already exists. Please use a different plan name.")
                 else name unique
                     SVC->>REP: nextId()
                     REP-->>SVC: int
@@ -774,6 +741,10 @@ sequenceDiagram
                     NEWPLAN-->>APP: int
                     APP->>NEWPLAN: getTarget()
                     NEWPLAN-->>APP: StarSystemInfo
+                    APP->>STAR: getConstellation()
+                    STAR-->>APP: String
+                    APP->>STAR: getQuadrant()
+                    STAR-->>APP: Quadrant
                     APP->>NEWPLAN: getSchedule()
                     NEWPLAN-->>APP: PlanSchedule
                     APP->>SCH: getTelescope()
@@ -819,6 +790,7 @@ sequenceDiagram
             APP->>APP: print(plan ID, plan name)
         end
     end
+    note over APP: step 3 asks for confirmation (the confirm option carries the answer)
     alt the astronomer does not confirm the submission
         APP->>APP: print("Submission cancelled. The science plan has not been submitted.")
     else the astronomer confirms the submission
@@ -838,9 +810,11 @@ sequenceDiagram
             SVC->>REP: save(plan)
             REP-->>SVC: SciencePlan
             SVC-->>APP: SciencePlan
+            APP->>PLAN: getPlanId()
+            PLAN-->>APP: int
             APP->>PLAN: getStatus()
             PLAN-->>APP: PlanStatus
-            APP->>APP: print("Science plan ID ... is now SUBMITTED.")
+            APP->>APP: print("Science plan ID " + planId + " is now " + status + ".")
         end
     end
     deactivate APP
@@ -858,7 +832,6 @@ sequenceDiagram
     participant VAL as PlanValidator
     participant RULE as ValidationRule
     participant PLAN as SciencePlan
-    participant OUT as ValidationOutcome
 
     OBS->>APP: run(args)
     activate APP
@@ -879,29 +852,31 @@ sequenceDiagram
         SVC-->>APP: OcsException("Only a submitted science plan can be validated.")
     else plan status is SUBMITTED
         SVC->>VAL: validate(plan)
+        note over VAL,RULE: one of the seven concrete rules per iteration
         loop for each of the seven validation rules
             VAL->>RULE: check(plan)
-            RULE-->>VAL: ValidationResult(ruleName, passed)
+            RULE-->>VAL: boolean
+            opt check returned false
+                VAL->>RULE: name()
+                RULE-->>VAL: String
+            end
         end
-        VAL-->>SVC: ValidationOutcome
-        alt every rule passed
+        VAL-->>SVC: List<String> of the names of the failed rules (empty means valid)
+        alt no rule failed
             SVC->>PLAN: markValidated(observerName, LocalDateTime.now(UTC))
         else at least one rule failed
             SVC->>PLAN: markInvalidated(observerName, LocalDateTime.now(UTC))
         end
         SVC->>REP: save(plan)
         REP-->>SVC: SciencePlan
-        SVC-->>APP: ValidationOutcome
-        APP->>OUT: isValid()
-        OUT-->>APP: boolean
-        alt outcome is valid
+        SVC-->>APP: List<String> of the names of the failed rules
+        alt no rule failed
             APP->>APP: print("Validate Science Plan Succeed ID: ...")
-        else outcome is invalid
-            APP->>OUT: getFailures()
-            OUT-->>APP: List<String>
-            APP->>APP: print("Validate failed: " + failures)
+        else at least one rule failed
+            APP->>APP: print("Validate failed: " + failed rule names joined by ", ")
         end
     end
+    deactivate SVC
     deactivate APP
 ```
 
@@ -921,7 +896,6 @@ sequenceDiagram
 
     OBS->>APP: run(args)
     activate APP
-    note over APP: step 3 builds the OpticsConfiguration, the MechanismConfiguration, the TelePositionPair list and the ObservingProgramDraft from the options
     APP->>SVC: listValidatedPlans()
     SVC->>REP: findByStatus(VALIDATED)
     REP-->>SVC: List<SciencePlan>
@@ -929,6 +903,7 @@ sequenceDiagram
     loop for each validated science plan
         APP->>APP: print(plan ID, plan name)
     end
+    note over APP: step 1 continues: the app builds the OpticsConfiguration, the MechanismConfiguration and the TelePositionPair list and wraps them in an ObservingProgramDraft
     APP->>SVC: createProgram(planId, observerId, draft)
     activate SVC
     SVC->>REP: findById(planId)
@@ -986,21 +961,23 @@ appears as a message in the sequence diagram of section 4.
 |:---|
 | **Primary Actor:** Astronomer |
 | **Stakeholders and Interests:** <ul><li>**Astronomer:** wants to record a complete science plan for a target and be told immediately when the plan cannot be accepted.</li><li>**Science Observer:** needs every submitted plan to carry a target that exists in the star catalogue, a telescope that matches the target's quadrant, and complete data-processing values.</li><li>**Observatory:** needs no two plans to occupy the same telescope over overlapping dates.</li></ul> |
-| **Brief Description:** The astronomer creates a science plan for a target constellation. The system checks the mandatory fields, the funding, the date range, the data-processing values of the selected colour mode, the target in the star catalogue, the schedule of the telescope and the uniqueness of the plan name, then stores the plan in status `CREATED`.**Precondition:** the astronomer has logged in; the star catalogue is available. |
+| **Brief Description:** The astronomer creates a science plan for a target constellation. The system checks the mandatory fields, the funding, the date range, the data-processing values of the selected colour mode, the target in the star catalogue, the schedule of the telescope and the uniqueness of the plan name, then stores the plan in status `CREATED`. |
+| **Precondition:** the astronomer has logged in; the star catalogue is available. |
 | **Trigger:** the astronomer starts the `create-plan` command with the plan details. |
-| **Normal Flow of Events:** <ol><li>The astronomer supplies the plan name, creator, funding, objective, start and end dates, telescope site, target constellation and the data-processing values.</li><li>The system builds the argument values, the data-processing settings, the plan schedule and a `SciencePlanDraft`.</li><li>The system calls `CreateSciencePlanService.createPlan(draft)`.</li><li>The system verifies that plan name, creator and objective are present, that funding is positive, that the start date is not after the end date and that the values required by the selected colour mode are present.</li><li>The system looks up the target constellation in the star catalogue.</li><li>The system checks that no plan for the same telescope overlaps the requested dates.</li><li>The system checks that the plan name is not already used.</li><li>The system asks the repository for the next plan ID and constructs the `SciencePlan` in status `CREATED`.</li><li>The system saves the plan in the data store.</li><li>The system prints the plan ID, the target and its quadrant, the telescope and the status.</li></ol> |
-| **Alternate/Exceptional Flow:** <ul><li>**4a. A required field is blank:** the system reports "Please complete all required fields before saving the science plan." and stores nothing.</li><li>**4b. Funding is missing or not positive:** the system reports "Funding amount must be a positive numerical value."</li><li>**4c. The start date is after the end date:** the system reports "Start date cannot be after the end date."</li><li>**4d. The data-processing values of the selected mode are missing:** the system reports "Please complete all required fields for the selected data processing mode."</li><li>**5a. The target is not in the star catalogue:** the system reports "Selected target not found in the star catalogue. Please choose a valid target."</li><li>**6a. The date range overlaps another plan on the same telescope:** the system reports "Selected date range conflicts with another scheduled plan for this telescope."</li><li>**7a. The plan name already exists:** the system reports "A science plan with this name already exists. Please use a different plan name."</li></ul> |
+| **Normal Flow of Events:** <ol><li>The astronomer supplies the plan name, creator, funding, objective, start and end dates, telescope site, target constellation and the data-processing values.</li><li>The system builds the data-processing settings, the plan schedule and a `SciencePlanDraft`.</li><li>The system calls `CreateSciencePlanService.createPlan(draft)` and verifies that plan name, creator and objective are present, that funding is positive, that the start date is not after the end date and that the values required by the selected colour mode are present.</li><li>The system looks up the target constellation in the star catalogue.</li><li>The system checks that no plan for the same telescope overlaps the requested dates.</li><li>The system checks that the plan name is not already used.</li><li>The system asks the repository for the next plan ID, constructs the `SciencePlan` in status `CREATED` and saves it in the data store.</li><li>The system prints the plan ID, the target and its quadrant, the telescope and the status.</li></ol> |
+| **Alternate/Exceptional Flow:** <ul><li>**3a. A required field is blank:** the system reports "Please complete all required fields before saving the science plan." and stores nothing.</li><li>**3b. Funding is missing or not positive:** the system reports "Funding amount must be a positive numerical value."</li><li>**3c. The start date is after the end date:** the system reports "Start date cannot be after the end date."</li><li>**3d. The data-processing values of the selected mode are missing:** the system reports "Please complete all required fields for the selected data processing mode."</li><li>**4a. The target is not in the star catalogue:** the system reports "Selected target not found in the star catalogue. Please choose a valid target."</li><li>**5a. The date range overlaps another plan on the same telescope:** the system reports "Selected date range conflicts with another scheduled plan for this telescope."</li><li>**6a. The plan name already exists:** the system reports "A science plan with this name already exists. Please use a different plan name."</li></ul> |
 
 ### UC2 — Submit Science Plan
 
 | Use Case Name: Submit Science Plan |
 |:---|
 | **Primary Actor:** Astronomer |
-| **Stakeholders and Interests:** <ul><li>**Astronomer:** wants to see the plans he owns, with their statuses, and to submit a tested plan.</li><li>**Science Observer:** needs only tested plans to reach the submitted queue, so that validation works on a plan that has already been exercised.</li></ul> |
-| **Brief Description:** The astronomer lists his science plans, selects one and submits it after confirming. Only a plan in status `TESTED` can be submitted; the submission moves the plan to `SUBMITTED` so that UC3 can validate it.**Precondition:** the astronomer has logged in and has at least one science plan; the small status-update program (`mark-tested`) has moved the chosen plan from `CREATED` to `TESTED`. |
+| **Stakeholders and Interests:** <ul><li>**Astronomer:** wants to see the plans he owns, with their statuses, and to submit a tested plan.</li><li>**Science Observer:** needs only tested plans to reach the submitted list, so that validation works on a plan that has already been exercised.</li></ul> |
+| **Brief Description:** The astronomer lists his science plans, selects one and submits it after confirming. Only a plan in status `TESTED` can be submitted; the submission moves the plan to `SUBMITTED` so that UC3 can validate it. |
+| **Precondition:** the astronomer has logged in and has at least one science plan; the small status-update program (`mark-tested`) has moved the chosen plan from `CREATED` to `TESTED`. |
 | **Trigger:** the astronomer starts the `submit-plan` command. |
-| **Normal Flow of Events:** <ol><li>The astronomer supplies his account name and, optionally, a status filter.</li><li>The system lists every plan of the astronomer with its ID, name and status.</li><li>If a status filter is given, the system lists the plans of that status.</li><li>The system asks for confirmation; the confirmation is the `--confirm` option of the command.</li><li>The astronomer confirms, and the system calls `SubmitSciencePlanService.submitPlan(planId, creator)`.</li><li>The system loads the selected plan from the data store.</li><li>The system verifies that the plan exists, that it belongs to this astronomer, that it is not already submitted, validated or running, and that its status is `TESTED`.</li><li>The plan object moves itself to status `SUBMITTED`.</li><li>The system saves the plan and prints the new status.</li></ol> |
-| **Alternate/Exceptional Flow:** <ul><li>**4a. The astronomer cancels the confirmation:** the system prints "Submission cancelled. The science plan has not been submitted." and the plan keeps its status.</li><li>**7a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**7b. The plan belongs to another astronomer:** the system reports "This science plan belongs to another astronomer."</li><li>**7c. The plan is already `SUBMITTED`, `VALIDATED` or `RUNNING`:** the system reports "This science plan has already been submitted or executed."</li><li>**7d. The plan has not been tested:** the system reports "This science plan is incomplete. Please complete and test it before submission." This is the alternate flow demonstrated in the presentation.</li></ul> |
+| **Normal Flow of Events:** <ol><li>The astronomer supplies his account name and, optionally, a status filter.</li><li>The system lists every plan of the astronomer with its ID, name and status; if a status filter is given, it also lists the plans of that status.</li><li>The system reads the confirmation from the `--confirm` option of the command (the command line prints no prompt).</li><li>The astronomer confirms, and the system calls `SubmitSciencePlanService.submitPlan(planId, creator)`.</li><li>The system loads the selected plan from the data store and verifies that it exists, that it belongs to this astronomer, that it is not already submitted, validated or running, and that its status is `TESTED`.</li><li>The plan object moves itself to status `SUBMITTED`, and the system saves it in the data store.</li><li>The system prints the new status.</li></ol> |
+| **Alternate/Exceptional Flow:** <ul><li>**4a. The astronomer does not confirm the submission:** the system prints "Submission cancelled. The science plan has not been submitted." and the plan keeps its status.</li><li>**5a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**5b. The plan belongs to another astronomer:** the system reports "This science plan belongs to another astronomer."</li><li>**5c. The plan is already `SUBMITTED`, `VALIDATED` or `RUNNING`:** the system reports "This science plan has already been submitted or executed."</li><li>**5d. The plan has not been tested:** the system reports "This science plan is incomplete. Please complete and test it before submission." This is the alternate flow demonstrated in the presentation.</li></ul> |
 
 ### UC3 — Validate Science Plan
 
@@ -1008,10 +985,11 @@ appears as a message in the sequence diagram of section 4.
 |:---|
 | **Primary Actor:** Science Observer |
 | **Stakeholders and Interests:** <ul><li>**Science Observer:** wants a submitted plan checked against the seven criteria of the description and wants the verdict, the validator's name and the moment of validation recorded with the plan.</li><li>**Astronomer:** needs to learn why a plan was rejected so that it can be corrected.</li></ul> |
-| **Brief Description:** The science observer lists the submitted plans, selects one and validates it. A `PlanValidator` runs the seven independent criteria as Strategy objects; the outcome moves the plan to `VALIDATED` or `INVALIDATED` and records the observer and the UTC time.**Precondition:** the observer has logged in and at least one plan is in status `SUBMITTED`. |
+| **Brief Description:** The science observer lists the submitted plans, selects one and validates it. A `PlanValidator` runs the seven independent criteria as Strategy objects; the verdict moves the plan to `VALIDATED` or `INVALIDATED` and records the observer and the UTC time. |
+| **Precondition:** the observer has logged in and at least one plan is in status `SUBMITTED`. |
 | **Trigger:** the observer starts the `validate-plan` command for a submitted plan. |
-| **Normal Flow of Events:** <ol><li>The observer supplies the plan ID and his name.</li><li>The system lists every submitted plan with its ID, name and target.</li><li>The system loads the selected plan from the data store.</li><li>The system verifies that the plan exists and that its status is `SUBMITTED`.</li><li>The system hands the plan to the `PlanValidator`.</li><li>The validator runs the seven rules: the plan ID is a positive integer; the plan name, the creator, the funding and the objective are not blank; the telescope matches the quadrant of the target (`NQ` → Gemini North, `SQ` → Gemini South); the start date falls in the month in which the target is observable.</li><li>When every rule passes, the plan records the observer, the UTC time and the status `VALIDATED`; otherwise it records the same data with the status `INVALIDATED`.</li><li>The system saves the plan.</li><li>The system prints either "Validate Science Plan Succeed ID: ..." or "Validate failed:" followed by the names of the failed rules.</li></ol> |
-| **Alternate/Exceptional Flow:** <ul><li>**4a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**4b. The plan is not `SUBMITTED`:** the system reports "Only a submitted science plan can be validated."</li><li>**6a. At least one rule fails:** the plan becomes `INVALIDATED`, the system prints "Validate failed" with the failed rules, and the observer can correct the plan. This is the alternate flow demonstrated in the presentation, with a plan whose target is `SQ1` but whose telescope is Gemini North.</li></ul> |
+| **Normal Flow of Events:** <ol><li>The observer supplies the plan ID and his name.</li><li>The system lists every submitted plan with its ID, name and target.</li><li>The system loads the selected plan from the data store and verifies that it exists and that its status is `SUBMITTED`.</li><li>The system hands the plan to the `PlanValidator`, which runs the seven rules: the plan ID is a positive integer; the plan name, the creator, the funding and the objective are not blank; the telescope matches the quadrant of the target (`NQ` → Gemini North, `SQ` → Gemini South); the start date falls in the month in which the target is observable. `PlanValidator.validate(plan)` returns the empty list when every rule passes and the names of the failed rules otherwise.</li><li>When no rule failed, the plan records the observer, the UTC time and the status `VALIDATED`; otherwise it records the same data with the status `INVALIDATED`.</li><li>The system saves the plan in the data store.</li><li>The system prints either "Validate Science Plan Succeed ID: ..." or "Validate failed: " followed by the names of the failed rules, separated by commas.</li></ol> |
+| **Alternate/Exceptional Flow:** <ul><li>**3a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**3b. The plan is not `SUBMITTED`:** the system reports "Only a submitted science plan can be validated."</li><li>**4a. At least one rule fails:** the plan becomes `INVALIDATED` in step 5 and the system prints "Validate failed: " with the names of the failed rules in step 7; the observer can correct the plan. This is the alternate flow demonstrated in the presentation, with a plan whose target is `SQ1` but whose telescope is Gemini North.</li></ul> |
 
 ### UC4 — Create Observing Program
 
@@ -1019,7 +997,8 @@ appears as a message in the sequence diagram of section 4.
 |:---|
 | **Primary Actor:** Science Observer |
 | **Stakeholders and Interests:** <ul><li>**Science Observer:** wants to transform a validated science plan into an observing program that carries the telescope location, the optics values, the calibration settings and the telescope position pairs.</li><li>**Operation staff:** needs each observing program to be linked to the science plan it came from and to carry values that the hardware can accept.</li></ul> |
-| **Brief Description:** The science observer selects a validated science plan, supplies the optics, mechanism, calibration and position values, and the system creates an `ObservingProgram` that references the science plan, records the observer and derives the Gemini location from the plan's telescope.**Precondition:** the observer has logged in and at least one plan is in status `VALIDATED`. |
+| **Brief Description:** The science observer selects a validated science plan, supplies the optics, mechanism, calibration and position values, and the system creates an `ObservingProgram` that references the science plan, records the observer and derives the Gemini location from the plan's telescope. |
+| **Precondition:** the observer has logged in and at least one plan is in status `VALIDATED`. |
 | **Trigger:** the observer starts the `create-program` command for a validated plan. |
-| **Normal Flow of Events:** <ol><li>The observer supplies the plan ID, his name, the optics values, the mechanism and calibration values, and one or more telescope position pairs.</li><li>The system lists every validated plan with its ID and name.</li><li>The system builds the optics configuration, the mechanism configuration and the position pairs, and wraps them in an `ObservingProgramDraft`.</li><li>The system loads the selected plan and verifies that it exists and that its status is `VALIDATED`.</li><li>The system verifies the optics values against the ranges of the description: `GNZ` allows f-stop 1.8–8.1, `GSZ` allows 2.9–18, and the secondary RMS must be 5–17 nm at Gemini North and 5–13 nm at Gemini South.</li><li>The system verifies the mechanism values: the fold-mirror degree lies in [30, 45] and the module content is 1–4.</li><li>The system asks the repository for the next program ID and constructs the `ObservingProgram`, which derives the Gemini location from the plan, keeps the position pairs and starts in status `CREATED`.</li><li>The system saves the observing program.</li><li>The system prints the program ID, the derived location, the science plan ID and the status.</li></ol> |
-| **Alternate/Exceptional Flow:** <ul><li>**4a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**4b. The plan is not `VALIDATED`:** the system reports "The science plan must be validated before an observing program can be created."</li><li>**5a. An optics value is outside its range:** the system reports "The optics values are outside the supported ranges for this telescope." This is the alternate flow demonstrated in the presentation, with `GNZ` and f-stop 9.5.</li><li>**6a. A mechanism value is outside its range:** the system reports "The mechanism values are outside the supported ranges."</li></ul> |
+| **Normal Flow of Events:** <ol><li>The observer supplies the plan ID, his name, the optics, mechanism and calibration values and one or more telescope position pairs.</li><li>The system lists every validated plan with its ID and name, and builds the optics configuration, the mechanism configuration and the position pairs and wraps them in an `ObservingProgramDraft`.</li><li>The system loads the selected plan from the data store and verifies that it exists and that its status is `VALIDATED`.</li><li>The system verifies the optics values against the ranges of the description: `GNZ` allows f-stop 1.8–8.1, `GSZ` allows 2.9–18, and the secondary RMS must be 5–17 nm at Gemini North and 5–13 nm at Gemini South.</li><li>The system verifies the mechanism values: the fold-mirror degree lies in [30, 45] and the module content is 1–4.</li><li>The system asks the repository for the next program ID, constructs the `ObservingProgram` — which derives the Gemini location from the plan, keeps the position pairs and starts in status `CREATED` — and saves it in the data store.</li><li>The system prints the program ID, the derived location, the science plan ID and the status.</li></ol> |
+| **Alternate/Exceptional Flow:** <ul><li>**3a. No plan has that ID:** the system reports "No science plan found with ID ...".</li><li>**3b. The plan is not `VALIDATED`:** the system reports "The science plan must be validated before an observing program can be created."</li><li>**4a. An optics value is outside its range:** the system reports "The optics values are outside the supported ranges for this telescope." This is the alternate flow demonstrated in the presentation, with `GNZ` and f-stop 9.5.</li><li>**5a. A mechanism value is outside its range:** the system reports "The mechanism values are outside the supported ranges."</li></ul> |

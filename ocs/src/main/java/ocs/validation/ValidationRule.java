@@ -7,5 +7,5 @@ import ocs.domain.SciencePlan;
  */
 public interface ValidationRule {
     public String name();
-    public ValidationResult check(SciencePlan plan);
+    public boolean check(SciencePlan plan);
 }

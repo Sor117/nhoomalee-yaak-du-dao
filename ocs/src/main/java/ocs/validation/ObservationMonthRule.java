@@ -9,8 +9,7 @@ public final class ObservationMonthRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(),
-                plan.getTarget().isObservableIn(plan.getSchedule().getStartDate().getMonth()));
+    public boolean check(SciencePlan plan) {
+        return plan.getTarget().isObservableIn(plan.getSchedule().getStartDate().getMonth());
     }
 }

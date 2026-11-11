@@ -4,7 +4,6 @@ import java.util.List;
 
 import ocs.domain.SciencePlan;
 import ocs.service.ValidateSciencePlanService;
-import ocs.validation.ValidationOutcome;
 
 public final class ValidateSciencePlanApp extends AbstractCliApp {
     private final ValidateSciencePlanService service;
@@ -23,11 +22,11 @@ public final class ValidateSciencePlanApp extends AbstractCliApp {
         }
         int planId = values.getInt("plan");
         String observer = values.getString("observer");
-        ValidationOutcome outcome = service.validatePlan(planId, observer);
-        if (outcome.isValid()) {
+        List<String> failures = service.validatePlan(planId, observer);
+        if (failures.isEmpty()) {
             print("Validate Science Plan Succeed ID: " + planId);
         } else {
-            print("Validate failed: " + String.join("; ", outcome.getFailures()));
+            print("Validate failed: " + String.join(", ", failures));
         }
     }
 }

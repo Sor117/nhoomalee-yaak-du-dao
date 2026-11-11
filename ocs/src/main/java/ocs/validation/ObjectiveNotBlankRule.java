@@ -12,7 +12,7 @@ public final class ObjectiveNotBlankRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(), plan.getObjective() != null && !plan.getObjective().isBlank());
+    public boolean check(SciencePlan plan) {
+        return plan.getObjective() != null && !plan.getObjective().isBlank();
     }
 }

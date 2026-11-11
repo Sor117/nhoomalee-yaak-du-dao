@@ -12,7 +12,7 @@ public final class PlanNameNotBlankRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(), plan.getPlanName() != null && !plan.getPlanName().isBlank());
+    public boolean check(SciencePlan plan) {
+        return plan.getPlanName() != null && !plan.getPlanName().isBlank();
     }
 }

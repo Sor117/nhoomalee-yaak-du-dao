@@ -11,6 +11,7 @@ public abstract class AbstractCliApp {
             execute(new ArgumentValues(args));
         } catch (OcsException | IllegalArgumentException e) {
             print("ERROR: " + e.getMessage());
+            System.exit(1);
         }
     }
 

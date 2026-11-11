@@ -15,11 +15,13 @@ public final class PlanValidator {
         this.rules = List.copyOf(rules);
     }
 
-    public ValidationOutcome validate(SciencePlan plan) {
-        List<ValidationResult> results = new ArrayList<>();
+    public List<String> validate(SciencePlan plan) {
+        List<String> failures = new ArrayList<>();
         for (ValidationRule rule : rules) {
-            results.add(rule.check(plan));
+            if (!rule.check(plan)) {
+                failures.add(rule.name());
+            }
         }
-        return new ValidationOutcome(results);
+        return List.copyOf(failures);
     }
 }

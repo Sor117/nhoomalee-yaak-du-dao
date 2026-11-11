@@ -3,6 +3,7 @@ package ocs.cli;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 import ocs.domain.OcsException;
@@ -40,15 +41,31 @@ public final class ArgumentValues {
     }
 
     public int getInt(String key) {
-        return Integer.parseInt(getString(key));
+        String raw = getString(key);
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            throw new OcsException("Invalid number for --" + key + ": " + raw);
+        }
     }
 
     public double getDouble(String key) {
-        return Double.parseDouble(getString(key));
+        String raw = getString(key);
+        try {
+            return Double.parseDouble(raw);
+        } catch (NumberFormatException e) {
+            throw new OcsException("Invalid number for --" + key + ": " + raw);
+        }
     }
 
     public LocalDate getDate(String key) {
-        return LocalDate.parse(getString(key));
+        String raw = getString(key);
+        try {
+            return LocalDate.parse(raw);
+        } catch (DateTimeParseException e) {
+            throw new OcsException("Invalid date for --" + key
+                    + ": " + raw + " (expected YYYY-MM-DD).");
+        }
     }
 
     public List<String> getAll(String key) {

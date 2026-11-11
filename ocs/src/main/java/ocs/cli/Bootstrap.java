@@ -13,7 +13,6 @@ import ocs.persistence.FileObservingProgramRepository;
 import ocs.persistence.FileSciencePlanRepository;
 import ocs.service.CreateObservingProgramService;
 import ocs.service.CreateSciencePlanService;
-import ocs.service.MarkPlanTestedService;
 import ocs.service.SubmitSciencePlanService;
 import ocs.service.ValidateSciencePlanService;
 import ocs.validation.CreatorNotBlankRule;
@@ -64,7 +63,7 @@ public final class Bootstrap {
         apps.put("create-plan",
                 new CreateSciencePlanApp(new CreateSciencePlanService(catalog, plans)));
         apps.put("mark-tested",
-                new MarkPlanTestedApp(new MarkPlanTestedService(plans)));
+                new MarkPlanTestedApp(plans));
         apps.put("submit-plan",
                 new SubmitSciencePlanApp(new SubmitSciencePlanService(plans)));
         apps.put("validate-plan",

@@ -12,7 +12,7 @@ public final class CreatorNotBlankRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(), plan.getCreator() != null && !plan.getCreator().isBlank());
+    public boolean check(SciencePlan plan) {
+        return plan.getCreator() != null && !plan.getCreator().isBlank();
     }
 }

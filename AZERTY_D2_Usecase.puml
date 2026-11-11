@@ -1,0 +1,79 @@
+@startuml
+' Gemini Observatory Control System - user-facing use-case model (PLAN.md section 1.3)
+!pragma layout smetana
+left to right direction
+skinparam dpi 250
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F4F8FB
+  BorderColor #1F4E79
+  FontColor #112233
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor #FFF6EA
+  BorderColor #8A4B08
+  FontSize 12
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #1F4E79
+  FontSize 14
+}
+skinparam ArrowColor #566573
+
+actor User
+actor Administrator
+actor Astronomer
+actor "Science Observer" as SciObserver
+actor "Telescope Operator" as TelOperator
+actor Support
+actor "Star Catalogue" as StarCatalogue <<external system>>
+
+package "Gemini OCS" {
+  usecase "Login to the system" as UC1
+  usecase "Control high-level functions\n--\nextension points\nUser management\nDefine user's access mode\nDefine operation level" as UC2
+  usecase "Change observation schedule" as UC3
+  usecase "Define system shutdown time" as UC4
+  usecase "Create a science plan" as UC5
+  usecase "Access to star catalogues" as UC6
+  usecase "Test a science plan" as UC7
+  usecase "Operate the interactive observing\n(virtual telescope)" as UC8
+  usecase "Submit a science plan" as UC9
+  usecase "Validate a science plan" as UC10
+  usecase "Create an observing program" as UC11
+  usecase "Validate an observing program" as UC12
+  usecase "Execute an approved science plan" as UC13
+  usecase "Monitor the progress of a\nscience plan execution" as UC14
+  usecase "Access collected astronomical data" as UC15
+  usecase "Access live view of telescope" as UC16
+  usecase "Perform system diagnosis" as UC17
+  usecase "Install new configurations\nto the system" as UC18
+}
+
+User -- UC1
+Administrator -- UC2
+
+TelOperator -- UC3
+TelOperator -- UC4
+TelOperator -- UC12
+
+Astronomer -- UC5
+Astronomer -- UC6
+Astronomer -- UC7
+Astronomer -- UC9
+Astronomer -- UC15
+Astronomer -- UC16
+
+SciObserver -- UC6
+SciObserver -- UC10
+SciObserver -- UC11
+SciObserver -- UC13
+SciObserver -- UC14
+
+Support -- UC17
+Support -- UC18
+
+UC6 -- StarCatalogue
+UC7 ..> UC8 : <<include>>
+@enduml

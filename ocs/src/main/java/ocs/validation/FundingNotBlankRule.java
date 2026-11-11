@@ -12,7 +12,7 @@ public final class FundingNotBlankRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
-        return new ValidationResult(name(), plan.getFunding() != null);
+    public boolean check(SciencePlan plan) {
+        return plan.getFunding() != null;
     }
 }

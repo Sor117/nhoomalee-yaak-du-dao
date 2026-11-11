@@ -10,10 +10,10 @@ public final class QuadrantTelescopeConsistencyRule implements ValidationRule {
     }
 
     @Override
-    public ValidationResult check(SciencePlan plan) {
+    public boolean check(SciencePlan plan) {
         TelescopeSite required = plan.getTarget().getQuadrant().isNorth()
                 ? TelescopeSite.GEMINI_NORTH
                 : TelescopeSite.GEMINI_SOUTH;
-        return new ValidationResult(name(), plan.getSchedule().getTelescope() == required);
+        return plan.getSchedule().getTelescope() == required;
     }
 }
