@@ -24,9 +24,6 @@
 
 ## 2. Package diagram
 
-Each box below is a Java package and contains exactly the classes that live in it. Every arrow is a
-permitted dependency: the implementation contains no other dependency between these packages and no
-cycle.
 
 ```mermaid
 flowchart TD
@@ -121,13 +118,6 @@ flowchart TD
     persistence --> domain
     persistence --> DataStore
 ```
-
-The external system of these four use cases is the **star catalogue**, which belongs to the
-observatory's existing user tools and is not part of the OCS: `ocs.domain.StarCatalog` hides it and
-`ocs.catalog.SimulatedStarCatalog` is its simulated version. The data store is accessed only by
-`ocs.persistence`, whose classes implement the two repository interfaces declared in
-`ocs.domain`. `ocs.service` and `ocs.validation` never see a file, a `Properties` object or the
-simulated catalogue class; only `Bootstrap` knows both sides of every port.
 
 ---
 
