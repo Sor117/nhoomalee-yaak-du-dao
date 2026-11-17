@@ -728,12 +728,10 @@ sequenceDiagram
         SVC->>REP: findByCreator(creator)
         REP-->>SVC: List<SciencePlan>
         SVC-->>APP: List<SciencePlan>
-        note over SVC: keeps only the plans whose getStatus() equals the requested status
         loop for each plan of that status
             APP->>APP: print(plan ID, plan name)
         end
     end
-    note over APP: step 3 asks for confirmation (the confirm option carries the answer)
     alt the astronomer does not confirm the submission
         APP->>APP: print("Submission cancelled. The science plan has not been submitted.")
     else the astronomer confirms the submission
@@ -795,7 +793,6 @@ sequenceDiagram
         SVC-->>APP: OcsException("Only a submitted science plan can be validated.")
     else plan status is SUBMITTED
         SVC->>VAL: validate(plan)
-        note over VAL,RULE: one of the seven concrete rules per iteration
         loop for each of the seven validation rules
             VAL->>RULE: check(plan)
             RULE-->>VAL: boolean
