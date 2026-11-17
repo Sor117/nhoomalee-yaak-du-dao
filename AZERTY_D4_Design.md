@@ -846,7 +846,6 @@ sequenceDiagram
     loop for each validated science plan
         APP->>APP: print(plan ID, plan name)
     end
-    note over APP: step 2 continues: the app builds the OpticsConfiguration, the MechanismConfiguration and the TelePositionPair list and wraps them in an ObservingProgramDraft
     APP->>SVC: createProgram(planId, observerId, draft)
     activate SVC
     SVC->>REP: findById(planId)
