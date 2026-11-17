@@ -1,14 +1,6 @@
 # AZERTY — D4: Design Model of the Gemini OCS Prototype
 
-ITCS382 Software Design and Modeling · Project Phase 2 · Group **AZERTY**
-Prototype: Observatory Control System (OCS) of the Gemini Observatory, Java 17, Maven, command line.
 
-This file contains the design model (Part 1 of D4): the package diagram, one design-level class
-diagram, four design-level sequence diagrams and four revised use case descriptions. The design
-rationale, the run instructions, the traceability table and the quality results are in
-`AZERTY_D4_Report.md`. The implementation is in the `ocs` folder.
-
----
 
 ## 1. The four selected use cases
 
@@ -19,18 +11,7 @@ rationale, the run instructions, the traceability table and the quality results 
 | UC3 | **Validate Science Plan** | Science Observer | the same `SciencePlan` in status `VALIDATED` or `INVALIDATED` |
 | UC4 | **Create Observing Program** | Science Observer | a new `ObservingProgram` for the validated `SciencePlan` |
 
-The four use cases are four of the five use cases analysed in D3. They form one connected flow, because
-each one operates on the object that the previous one produced: UC1 creates the `SciencePlan`, UC2 moves
-it to `SUBMITTED`, UC3 records its verdict, and UC4 reads the validated plan and creates the second major
-class, `ObservingProgram`. D3's fifth use case, *Test a Science Plan*, is not designed or implemented as a
-use case in D4: the prototype represents it only by the auxiliary command `mark-tested`
-(`ocs.cli.MarkPlanTestedApp`), the status-update program that the Submit story requires to move a plan
-from `CREATED` to `TESTED`. It is not a fifth use case and earns no separate marks.
-
 ### Team decisions that the source documents leave open
-
-The following points are not defined by the provided documents. They are decisions of this team,
-recorded here so that the model and the code can be read unambiguously.
 
 | # | Decision | Reason |
 |---|----------|--------|
@@ -38,20 +19,6 @@ recorded here so that the model and the code can be read unambiguously.
 | D2 | `ObservingProgramStatus` has the two values `CREATED` and `CONFIRMED`. | The narrative says the system "updates the validation status of the observing program" but never names its values; validation of an observing program is not one of the selected use cases, so a minimal status is modelled. |
 | D3 | `TelePositionPair.direction` is an enumeration of four compass directions (`NORTH`, `SOUTH`, `EAST`, `WEST`); `degree` is a `double` with no range check. | The narrative says each pair "holds a direction and a degree" but gives no vocabulary and no range. The fold-mirror range [30, 45] belongs to a different field and is not reused. |
 | D4 | Login is out of scope; the actor identity is passed on the command line (`--creator`, `--observer`) and `SciencePlan.validatedAt` is recorded in UTC. | `Login` does not count towards the four use cases and the precondition of every use case is that the actor "has already logged in"; the requirements ask for UTC timestamps on recorded events. |
-
-### Notation conventions used by the diagrams
-
-* `ocs.domain` is an ordinary Java package, not a reverse-domain name: the group does not own a
-  domain, and the repository root already identifies the project.
-* In the class diagram, `+` is public, `-` is private and `#` is protected; `$` after a member marks
-  it `static` (the UML underline); `/` before an attribute name marks it computed rather than stored;
-  `~T~` is Mermaid's rendering of a generic parameter, so `List~TelePositionPair~` is
-  `List<TelePositionPair>`.
-* Multiplicities and role names appear on the associations; an association arrow points at the class
-  that is referenced, so the tail is the class that holds the reference.
-* Sequence diagrams start at the actor; the command-line class that receives the input is the second
-  lifeline. `print(...)` messages are calls of the protected operation that `AbstractCliApp` gives to
-  all five command classes.
 
 ---
 
