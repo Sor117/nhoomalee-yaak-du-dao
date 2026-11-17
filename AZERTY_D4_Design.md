@@ -123,10 +123,6 @@ flowchart TD
 
 ## 3. Design-level class diagram
 
-Every class that participates in UC1–UC4 appears below, together with its fields, constructors and
-operations, the associations and their multiplicities, and the classes that play a role in the
-Strategy pattern.
-
 ```````````mermaid
 classDiagram
     class PlanStatus {
@@ -635,18 +631,7 @@ classDiagram
 ---
 ## 4. Design-level sequence diagrams
 
-A lifeline names the object that exists at run time, so the repository and catalogue lifelines carry the
-name of the adapter that `Bootstrap` instantiates; the class that sends the messages holds the port type
-(`StarCatalog`, `SciencePlanRepository`, `ObservingProgramRepository`), and the class diagram shows that
-dependency. Guards whose code is a sequence of one-line checks are drawn as one `alt` with one branch per
-check, and the branch that ends in an exception means that the command stops there: `AbstractCliApp.run`
-catches the exception, prints `ERROR: <message>` and exits with status 1, so no print message is drawn
-inside the exception branches. `Bootstrap` creates the repositories, the catalogue and the five command
-objects before `run` is called, and `mark-tested` is the auxiliary status program required by the Submit
-story, so neither has a use-case sequence diagram of its own. The `N found.` header of each listing is
-printed before the loop that the diagram shows.
-
-### UC1 — Create Science Plan (main flow and the overlap alternate flow)
+### UC1 — Create Science Plan
 
 ```mermaid
 sequenceDiagram
@@ -662,7 +647,6 @@ sequenceDiagram
 
     AST->>APP: run(args)
     activate APP
-    note over APP: step 2 builds the DataProcessingSettings, the PlanSchedule and the SciencePlanDraft from the options
     APP->>SVC: createPlan(draft)
     activate SVC
     alt plan name, creator or objective blank
