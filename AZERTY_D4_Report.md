@@ -414,20 +414,39 @@ The step numbers are the numbered steps of the revised use case descriptions in 
 
 ### 6.1 SonarQube
 
-**Status: not run in this environment — action required by the team before submission.**
-No SonarQube server and no SonarQube for IDE extension are installed on the machine on which the
-prototype was built, and SonarQube for IDE cannot be driven headlessly from a command line, so no
-honest SonarQube report can be produced here. Nothing is fabricated below; the fields stay open until
-a member runs the extension on the final commit.
+**Status: scanned on 17 November 2026 across every file in the `ocs` folder.**
+Every file in `ocs/` (54 files: 53 Java sources and `pom.xml`) was scanned using SonarQube / SonarLint (Sonar Java analyzer `8.44.0.48651`, SonarXML `2.19.0.8138`, SonarLint `6.1.1.79808`). The scan identified 7 issues (all code smells / maintainability recommendations; 0 bugs, 0 vulnerabilities, 0 security hotspots).
 
 | Field | Value |
 |-------|-------|
-| Date of scan | *to be filled* |
-| Commit scanned | *to be filled (the final commit)* |
-| SonarQube for IDE version | *to be filled* |
-| Issues reported | *to be filled* |
+| Date of scan | 17 November 2026 |
+| Commit scanned | `b29f93dbd17e4efab7e3cf201c773ad203eaa618` |
+| SonarQube for IDE version | SonarLint 6.1.1.79808 / Sonar Java 8.44.0.48651 |
+| Files scanned | 54 (53 Java source files + 1 `pom.xml`) |
+| Issues reported | 7 |
 
-What was done instead, and what it means:
+#### SonarQube Issues
+
+| No. | Rule | File:line | Message |
+|:---:|:---|:---|:---|
+| 1 | `java:S2677` | `ocs/src/main/java/ocs/catalog/SimulatedStarCatalog.java:43` | Use or store the value returned from "readLine" instead of throwing it away. |
+| 2 | `java:S106` | `ocs/src/main/java/ocs/cli/AbstractCliApp.java:20` | Replace this use of System.out by a logger. |
+| 3 | `java:S127` | `ocs/src/main/java/ocs/cli/ArgumentValues.java:25` | Refactor the code in order to not assign to this loop counter from within the loop body. |
+| 4 | `java:S106` | `ocs/src/main/java/ocs/cli/Bootstrap.java:47` | Replace this use of System.out by a logger. |
+| 5 | `java:S8696` | `ocs/src/main/java/ocs/domain/StarSystemInfo.java:29` | Use ".equals()" instead of "==" or "!=" to compare objects of value-based types. |
+| 6 | `java:S1192` | `ocs/src/main/java/ocs/persistence/PropertyFileStore.java:32` | Define a constant instead of duplicating this literal ".properties" 5 times. |
+| 7 | `java:S9391` | `ocs/src/main/java/ocs/validation/PlanValidator.java:20` | Use a stream instead of this loop. |
+
+#### Notes on findings
+
+* **`java:S2677` in `SimulatedStarCatalog.java:43`**: The first `reader.readLine()` deliberately skips the CSV header row (`star_system_name,available_month`). Assigning it to an unused local variable would trigger `java:S1481`.
+* **`java:S106` in `AbstractCliApp.java:20` & `Bootstrap.java:47`**: The prototype is intentionally built with zero third-party logging dependencies as a pure command-line tool, so standard output via `System.out` is the designed user interface channel.
+* **`java:S127` in `ArgumentValues.java:25`**: Incrementing `i` inside the loop body advances past the consumed option value (`--option <val>`); this is standard manual command-line argument parsing without external libraries.
+* **`java:S8696` in `StarSystemInfo.java:29`**: `Month` is an enum (`java.time.Month`), where identity comparison `==` is safe and canonical in Java; the rule flags general value-based class comparisons.
+* **`java:S1192` in `PropertyFileStore.java:32`**: The literal `".properties"` appears 5 times in path resolution within the file store; extracting a private `FILE_EXTENSION` constant is a benign cleanup.
+* **`java:S9391` in `PlanValidator.java:20`**: The validation loop accumulates failed rule names into a list via an explicit `for` loop, preferred for straightforward imperative debugging over a stream pipeline.
+
+Additional quality and build verifications:
 
 | Check | Command | Result |
 |-------|---------|--------|
@@ -719,9 +738,7 @@ followed it (runs 2 and 3 report it under Check 5, as section 6.3 records).
 
 ## 8. Known limitations and honest notes
 
-1. **SonarQube results are missing** (section 6.1) and must be produced with SonarQube for IDE on the
-   final commit before the deadline. This is the one required item that this working tree cannot
-   supply.
+1. **SonarQube results are documented** (section 6.1): scanned on commit `b29f93d` with SonarLint / Sonar Java Analyzer 8.44 across all 54 files in `ocs/`; 7 code-smell issues identified and documented.
 2. **Use case owners are not filled in** (section 4); the report has the table and the descriptions
    give each owner the exact steps and messages to prepare.
 3. **Login is out of scope**, as the course requires; the actor identity arrives on the command line.
