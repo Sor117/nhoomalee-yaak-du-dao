@@ -1,20 +1,5 @@
 # AZERTY — D4 Report: Design Rationale, Evidence and Quality Checks
 
-ITCS382 Software Design and Modeling · Project Phase 2 · Group **AZERTY**
-Deliverable D4: design model (`AZERTY_D4_Design.md`), working prototype (`ocs/`) and this report.
-
-| Item | Value |
-|------|-------|
-| Repository | https://github.com/Sor117/nhoomalee-yaak-du-dao |
-| Scope | the user-facing part of the Gemini Observatory Control System (science plan → observing program); the core control system stays with the existing system |
-| Prototype | Java 17 source level, Maven, command line, no web interface, no framework, zero third-party libraries |
-| Classes | 53 (28 domain, 9 validation, 1 simulated external system, 3 persistence, 4 service, 8 command line) |
-| Use cases | UC1 Create Science Plan, UC2 Submit Science Plan, UC3 Validate Science Plan, UC4 Create Observing Program — four of the five use cases analysed in Phase 1 (D3); D3's *Test a Science Plan* is represented only by the required `mark-tested` status program |
-| Build verified | `mvn package` on a clean copy of `ocs/`, and `javac -Xlint:all` with no warnings, 11 November 2026 |
-| Demonstration verified | 8 flows (main and one alternate flow of each use case) on 11 November 2026 |
-
----
-
 ## 1. Build and run
 
 **Prerequisites.** A JDK 17 or later and Maven 3.6 or later. The implementation was built and run with
@@ -347,10 +332,10 @@ diagram, its sequence diagram and the line of code that sends any message the in
 
 | Use case | Owner |
 |----------|-------|
-| UC1 Create Science Plan | *to be filled by the team* |
-| UC2 Submit Science Plan | *to be filled by the team* |
-| UC3 Validate Science Plan | *to be filled by the team* |
-| UC4 Create Observing Program | *to be filled by the team* |
+| UC1 Create Science Plan | Peerawat |
+| UC2 Submit Science Plan | Daranpob |
+| UC3 Validate Science Plan | Warawuth, Pasit |
+| UC4 Create Observing Program | Wachiravich, Patharapol |
 
 ---
 
@@ -492,7 +477,7 @@ after runs 2 and 3 are marked **Fixed**, and run 4 re-checked the fixed tree.
 
 | Field | Value |
 |-------|-------|
-| Date | 9 November 2026, Asia/Bangkok |
+| Date | 9 November 2026 |
 | AI tool | DeepSeek Harness review subagent; a fresh context that saw only the repository files |
 | Exact model | `opencode-go/deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
 | Commit reviewed | the working tree before the first commit — identical to the files committed as `9473e4d`, `f45ae73` and `a5ea0e3` (the earlier 56-class design) |
@@ -558,7 +543,7 @@ class or element the finding named no longer exists.
 
 | Field | Value |
 |-------|-------|
-| Date | 11 November 2026, Asia/Bangkok |
+| Date | 11 November 2026 |
 | AI tool | DeepSeek Harness review subagent; a fresh context that saw only the repository files |
 | Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
 | Commit reviewed | the working tree before the fixes of section 6.3; the fixed tree was committed as `7428011` and re-reviewed as run 4 |
@@ -619,7 +604,7 @@ no finding at all.
 
 | Field | Value |
 |-------|-------|
-| Date | 11 November 2026, Asia/Bangkok |
+| Date | 11 November 2026 |
 | AI tool | DeepSeek Harness review teammate; a separate fresh context that saw only the repository files |
 | Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
 | Commit reviewed | the working tree before the fixes of section 6.3; the fixed tree was committed as `7428011` and re-reviewed as run 4 |
@@ -669,7 +654,7 @@ fixed, and the remaining ones are answered above.
 
 | Field | Value |
 |-------|-------|
-| Date | 11 November 2026, Asia/Bangkok |
+| Date | 11 November 2026 |
 | AI tool | DeepSeek Harness review teammate; a fresh context that saw only the repository files |
 | Exact model | `deepseek-v4.1-flash` (DeepSeek V4.1 Flash) |
 | Commit reviewed | `7428011` (working tree clean; the reviewer confirmed `git log -1`, empty `git status` and the ignored `PLAN.md`) |
@@ -735,28 +720,3 @@ untracked and listed in `.gitignore`, so it is not part of the commit, and none 
 followed it (runs 2 and 3 report it under Check 5, as section 6.3 records).
 
 ---
-
-## 8. Known limitations and honest notes
-
-1. **SonarQube results are documented** (section 6.1): scanned on commit `b29f93d` with SonarLint / Sonar Java Analyzer 8.44 across all 54 files in `ocs/`; 7 code-smell issues identified and documented.
-2. **Use case owners are not filled in** (section 4); the report has the table and the descriptions
-   give each owner the exact steps and messages to prepare.
-3. **Login is out of scope**, as the course requires; the actor identity arrives on the command line.
-4. **D3's fifth use case, Test a Science Plan, is not designed in D4**; the prototype represents it
-   only by the `mark-tested` status program that the Submit story requires. The four D4 use cases are
-   the four analysed in D3.
-5. **AI review run 1 was against the earlier 56-class design**; its complete output remains in
-   `reviews/` for traceability. The re-scope kept the accepted judgements and removed the classes
-   behind the superseded findings.
-6. **Runs 2 and 3 were made against the working tree** before the fixes they produced; the fixed
-   tree is commit `7428011` and **run 4** reviewed that commit. The team's remaining edits
-   (SonarQube results, use-case owners) change this report, so one final review run on the
-   submitted commit is recommended.
-7. **The accepted AI-review findings are deliberate.** They are quality judgements on a deliberately
-   small design — the procedural use-case steps at the boundaries, the rehydration seam in the
-   persistence package, the allowed two-hop navigation and the colour-mode rule that three packages
-   ask about in three different ways. Section 6.3 answers each of them individually.
-8. **The data-processing completeness message is enforced by the command parser.** A missing
-   data-processing option is reported by `ArgumentValues` (`ERROR: Missing required option --…`)
-   before `createPlan` runs; the service check with the narrative message remains as the defensive
-   rule for a non-CLI caller (runs 2 and 3 report this, and section 6.3 answers it).
