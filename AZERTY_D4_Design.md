@@ -890,10 +890,6 @@ sequenceDiagram
 ---
 
 ## 5. Revised use case descriptions
-
-The descriptions keep the Markdown table format of Phase 1 and are revised so that every system step
-appears as a message in the sequence diagram of section 4.
-
 ### UC1 — Create Science Plan
 
 | Use Case Name: Create Science Plan |
